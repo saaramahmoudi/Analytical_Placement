@@ -1,18 +1,6 @@
 #-------------------------------------------------------------------------------
 # compile the UMFPACK demos
 #-------------------------------------------------------------------------------
-
-# UMFPACK Copyright (c) Timothy A. Davis.
-# All Rights Reserved.  See ../Doc/License.txt for License.
-
-default: libs run
-
-all: libs run hb
-
-all32: libs run hb fortran
-
-all64: libs run hb fortran64
-
 include ../SuiteSparse-5.10.1/SuiteSparse_config/SuiteSparse_config.mk
 
 #-------------------------------------------------------------------------------
