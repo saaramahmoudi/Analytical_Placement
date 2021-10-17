@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <queue>
 #include <limits.h>
+#include "umfpack.h"
+
 
 using namespace std;
 
@@ -30,7 +32,7 @@ struct Pin{
 struct Net{
     int connected_block_len;
     int* connected_block;
-    float* weight;
+    double* weight;
 };
 
 
@@ -41,13 +43,14 @@ Net* n;
 int num_of_blocks = 0;
 int num_of_fixed = 0;
 
+
 void init(){
     p = new Pin[number_of_pins];
     fp = new Fixed_pin[number_of_pins];
     n = new Net[number_of_nets];
     for(int i = 0; i < number_of_pins; i++){
         n[i].connected_block = new int[max_fanout];
-        n[i].weight = new float[max_fanout];
+        n[i].weight = new double[max_fanout];
         n[i].connected_block_len = 0;
     }
 }
@@ -66,7 +69,7 @@ void make_clique(){
     }
 }
 
-float find_weight(int net_number, int target_block_number){
+double find_weight(int net_number, int target_block_number){
     for(int i = 0; i < n[net_number].connected_block_len; i++){
         if(n[net_number].connected_block[i] == target_block_number)
             return n[net_number].weight[i];
@@ -81,17 +84,26 @@ int find_pin(int pin_number){
     return -1;
 }
 
-//Calculate Weight Matrix
-float** cal_weight(){
 
-    float** pre_weight_mat = new float*[num_of_blocks];
-    float** weight_mat = new float*[num_of_blocks - num_of_fixed];
+int find_fixed_pin(int pin_number){
+    for(int i = 0; i < num_of_blocks; i++)
+        if(fp[i].pin_number == pin_number)
+            return i;
+    return -1;
+}
+
+
+//Calculate Weight Matrix
+double** cal_weight(){
+
+    double** pre_weight_mat = new double*[num_of_blocks];
+    double** weight_mat = new double*[num_of_blocks - num_of_fixed];
     
     for(int i = 0 ;  i < num_of_blocks - num_of_fixed; i++)
-        weight_mat[i] = new float[num_of_blocks - num_of_fixed];
+        weight_mat[i] = new double[num_of_blocks - num_of_fixed];
     
     for(int i = 0 ; i < num_of_blocks; i++){
-        pre_weight_mat[i] = new float[num_of_blocks];
+        pre_weight_mat[i] = new double[num_of_blocks];
     }
     //init to zero
     for(int i = 0; i < num_of_blocks; i++){
@@ -106,7 +118,7 @@ float** cal_weight(){
             }
             else{
                 for(int k = 0; k < p[i].connection_number; k++){
-                    float weight_temp = find_weight(p[i].connection[k],p[j].pin_number);
+                    double weight_temp = find_weight(p[i].connection[k],p[j].pin_number);
                     if(weight_temp != -1)
                         pre_weight_mat[i][j] += weight_temp;
                 }
@@ -152,7 +164,7 @@ float** cal_weight(){
                     p_index++;
                 }
                 
-                float w = 0;
+                double w = 0;
                 for(int k = 0; k < num_of_blocks; k++){
                     w += pre_weight_mat[p[p_index].pin_number-1][k];
                 }
@@ -162,14 +174,97 @@ float** cal_weight(){
         }
     }
     /************************************************************Debug*****************************************************************/
-    for(int i = 0; i < num_of_blocks-num_of_fixed; i++){
-        for(int j = 0; j < num_of_blocks-num_of_fixed; j++){
-            cout << weight_mat[i][j] << "  ";
-        }
-        cout << endl;
-    }
+    // for(int i = 0; i < num_of_blocks-num_of_fixed; i++){
+    //     for(int j = 0; j < num_of_blocks-num_of_fixed; j++){
+    //         cout << weight_mat[i][j] << "  ";
+    //     }
+    //     cout << endl;
+    // }
     return weight_mat;
 }
+
+double* cal_fixed(int dim){//dim 0 : x_vector dim 1: y_vecotr
+    double* dim_vec = new double[num_of_blocks - num_of_fixed];
+    int index_dim_vec = 0;
+    for(int i = 0; i < num_of_blocks - num_of_fixed; i++)
+        dim_vec[i] = 0;
+    
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed)
+            continue;
+        for(int j = 0; j < p[i].connection_number; j++){
+            int net_id = p[i].connection[j];
+            if(n[net_id].connected_block_len == 0)
+                continue;
+            else{
+                for(int k = 0; k < n[net_id].connected_block_len; k++){
+                    int p_id = find_pin(n[net_id].connected_block[k]);
+                    if(p[p_id].fixed){//p[i] is connected to a fixed block
+                        int fp_in = find_fixed_pin(p[p_id].pin_number);
+                        double pre_weight = (dim < 1) ? (n[net_id].weight[k] * fp[fp_in].x_loc) : (n[net_id].weight[k] * fp[fp_in].y_loc);
+                        dim_vec[index_dim_vec] = dim_vec[index_dim_vec] + pre_weight;
+                    }
+                }
+            }
+        }
+        index_dim_vec++;
+    }
+    
+    /************************************************************Debug*****************************************************************/
+    // for(int i = 0; i < num_of_blocks - num_of_fixed; i++){
+    //     cout << " " << dim_vec[i] << " ";
+    // }
+    // cout << endl;
+    return dim_vec;
+}
+
+double* solve(int dim){
+    double** weight_mat = cal_weight();
+    int non_zero_elem = 0;
+    for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
+        for(int j = 0; j < num_of_blocks - num_of_fixed; j++){
+            if(weight_mat[i][j] != 0)
+                non_zero_elem++;
+        }
+    }
+    //preprocess matrix for solver
+    int* Ap = new int[num_of_blocks - num_of_fixed + 1];
+    Ap[0] = 0;
+    int Ap_index = 1;
+    int* Ai = new int[non_zero_elem];
+    int Ai_Ax_index = 0;
+    double* Ax = new double[non_zero_elem];
+    for(int j = 0; j < num_of_blocks - num_of_fixed; j++){
+        Ap[Ap_index] = Ap[Ap_index-1];
+        for(int i = 0; i < num_of_blocks - num_of_fixed; i++){
+            if(weight_mat[i][j] != 0){
+                Ai[Ai_Ax_index] = i;
+                Ax[Ai_Ax_index] = weight_mat[i][j];
+                Ai_Ax_index++;
+                Ap[Ap_index]++;
+            }
+        }
+        Ap_index++;
+    }
+    int n = num_of_blocks - num_of_fixed;
+    double* in_vector = cal_fixed(dim);
+    double* x = new double [num_of_blocks - num_of_fixed];
+    //solve for x dimension
+    double *null = (double *) NULL ;
+    void *Symbolic, *Numeric ;
+    (void) umfpack_di_symbolic (n, n, Ap, Ai, Ax, &Symbolic, null, null) ;
+    (void) umfpack_di_numeric (Ap, Ai, Ax, Symbolic, &Numeric, null, null) ;
+    umfpack_di_free_symbolic (&Symbolic) ;
+    (void) umfpack_di_solve (UMFPACK_A, Ap, Ai, Ax, x, in_vector, Numeric, null, null) ;
+    umfpack_di_free_numeric (&Numeric) ;
+    /************************************************************Debug*****************************************************************/
+    // for(int i = 0 ; i < n ; i++){
+    //     cout << x[i] << " ";
+    // }
+    // cout << endl;
+    return x;
+}
+
 
 int main(){
     string fileName;
@@ -242,10 +337,6 @@ int main(){
             }
         }
     }
-
-    make_clique();
-    float** pre_mat = cal_weight();
-
     /************************************************************Debug*****************************************************************/
     //print input netlist
     // for(int i = 0; i < num_of_blocks ; i++){
@@ -271,8 +362,13 @@ int main(){
     //     cout << fp[i].pin_number << " " << fp[i].x_loc << " " << fp[i].y_loc << endl;
     // }
     
-    
-    
+    make_clique();
+    double* x_vec = solve(0);
+    double* y_vec = solve(1);
+    /************************************************************Debug*****************************************************************/
+    for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
+        cout << x_vec[i] << " " << y_vec[i] << endl; 
+    }
     
     return 0;
 }
