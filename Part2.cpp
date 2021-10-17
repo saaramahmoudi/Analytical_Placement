@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <queue>
 #include <limits.h>
+#include <math.h>
+#include <bits/stdc++.h>
 #include "umfpack.h"
 
 using namespace std;
@@ -22,8 +24,8 @@ struct Bin{
 
 struct Fixed_pin{
     int pin_number;
-    int x_loc;
-    int y_loc;
+    double x_loc;
+    double y_loc;
 };
 
 struct Pin{
@@ -32,6 +34,10 @@ struct Pin{
     //net connection
     int* connection; 
     bool fixed;
+    double x_loc;
+    double y_loc;
+    double moved_x_loc;
+    double moved_y_loc;
 };
 
 struct Net{
@@ -46,9 +52,11 @@ Fixed_pin* fp;
 Pin* p;
 Net* n;
 Bin* b;
+Bin* overfilled_b;
 int num_of_blocks = 0;
 int num_of_fixed = 0;
 int num_of_bins = 0;
+int overfilled_bins_num =0;
 int max_x = -1;
 int max_y = -1;
 
@@ -182,6 +190,10 @@ double** cal_weight(){
             }
         }
     }
+    //delete pre_mat
+    for(int i = 0; i < num_of_blocks; i++)
+        delete[] pre_weight_mat[i];
+    delete[] pre_weight_mat;
     /************************************************************Debug*****************************************************************/
     // for(int i = 0; i < num_of_blocks-num_of_fixed; i++){
     //     for(int j = 0; j < num_of_blocks-num_of_fixed; j++){
@@ -189,6 +201,7 @@ double** cal_weight(){
     //     }
     //     cout << endl;
     // }
+
     return weight_mat;
 }
 
@@ -271,7 +284,18 @@ double* solve(int dim){
     //     cout << x[i] << " ";
     // }
     // cout << endl;
+    delete[] Ap;
+    delete[] Ax;
+    delete[] Ai;
     return x;
+}
+
+int find_bin(int x, int y){
+    for(int i = 0; i < num_of_bins; i++){
+        if(b[i].x == x && b[i].y == y)
+            return i;
+    }
+    return -1;
 }
 
 void create_bin(){
@@ -282,10 +306,119 @@ void create_bin(){
             b[num_of_bins].x = i;
             b[num_of_bins].y = j;
             b[num_of_bins].block_cout = 0;
-            b[num_of_bins].blocks = new int[number_of_pins/2];//Worst case: Half of pins are overlapped
+            b[num_of_bins].blocks = new int[number_of_pins];
             num_of_bins++;
         }
     }
+    for(int i = 0; i < num_of_blocks; i++){
+        int pid = p[i].pin_number;
+        int p_index = i;
+        int b_x = -1;
+        int b_y = -1;
+        int b_index;
+        if(p[i].fixed){
+            p_index = find_fixed_pin(pid);
+            b_x = floor(fp[p_index].x_loc - 0.001 > 0 ? fp[p_index].x_loc - 0.001 : 0);
+            b_y = floor(fp[p_index].y_loc - 0.001 > 0 ? fp[p_index].y_loc - 0.001 : 0);
+        }
+        else{
+            b_x = floor(p[i].x_loc> 0 ? p[i].x_loc - 0.001 : 0);
+            b_y = floor(p[i].y_loc> 0 ? p[i].y_loc - 0.001 : 0);
+        }
+        b_index = find_bin(b_x,b_y);
+        b[b_index].blocks[b[b_index].block_cout] = p[i].pin_number;
+        b[b_index].block_cout++;
+    }
+    /************************************************************Debug*****************************************************************/
+    // for(int i = 0; i < num_of_bins; i++){
+    //     if(b[i].block_cout == 0)
+    //         continue;
+    //     cout << b[i].x << " " << b[i].y << ":" << endl;
+    //     for(int j = 0; j < b[i].block_cout; j++){
+    //         int index = find_pin(b[i].blocks[j]);
+    //         cout << b[i].blocks[j] << " : " << p[index].x_loc << " " << p[index].y_loc << endl; 
+    //     }
+    //     cout << "=================================================" << endl;
+    // }
+}
+
+bool compare_two_bins(Bin b1, Bin b2){
+    return b1.block_cout < b2.block_cout;
+}
+
+Bin* sort_overfilled_bins(){
+    overfilled_bins_num = 0;
+    for(int i = 0; i < num_of_bins; i++)
+        if(b[i].block_cout > 1)
+            overfilled_bins_num++;
+    Bin* overfilled_b = new Bin[overfilled_bins_num];
+    overfilled_bins_num = 0;
+    for(int i = 0; i < num_of_bins; i++)
+        if(b[i].block_cout > 1){
+            overfilled_b[overfilled_bins_num] = b[i];
+            overfilled_bins_num++;
+        }
+    sort(overfilled_b,overfilled_b+overfilled_bins_num,compare_two_bins);
+    return overfilled_b;
+}
+
+
+void spread(){
+    int itr = 0;
+    int max_allowed_movement = (itr+1)^2;
+    overfilled_b = sort_overfilled_bins();
+    for(int i = 0; i < overfilled_bins_num; i++){
+        //TODO: find path and update
+        
+    }
+}
+
+//TODO: CHECK COMPUTE COST
+int compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
+    double cost = DBL_MAX; 
+    double distance = 0;
+    int move = -1; //0 : up, 1 : down, 2 : right, 3: left
+    if(tail_bin.x == bk.x){
+        if(bk.y > tail_bin.y){ //right
+            move = 2;
+        }
+        else{//left
+            move = 3;
+        }
+    }
+    else if(tail_bin.y == bk.y){
+        if(bk.x > tail_bin.x) {//up
+            move = 0;
+        }
+        else{//down
+            move = 1;
+        }
+    }
+    for(int i = 0; i < tail_bin.block_cout; i++){//blocks placed in tail bin
+        int pid = find_pin(tail_bin.blocks[i]);
+        //compute x and y future positions to calculate quardaric distance
+        double move_x = p[pid].moved_x_loc;
+        double move_y = p[pid].moved_y_loc;
+        switch (move)
+        {
+        case 0: move_x++;
+            break;
+        case 1: move_x--;
+            break;
+        case 2: move_y++;
+            break;
+        case 3: move_y--;
+            break;
+        default: 
+            break;
+        }
+        distance = (p[pid].x_loc - move_x)^2 + (p[pid].y_loc - move_y)^2;
+        if(distance < max_allowed_movement){
+            if(distance < cost)
+                cost = distance;
+        }
+    }
+    return cost;
 }
 
 
@@ -364,32 +497,6 @@ int main(){
             }
         }
     }
-    /************************************************************Debug*****************************************************************/
-    //print input netlist
-    // for(int i = 0; i < num_of_blocks ; i++){
-    //     cout << "Pin Number: " << p[i].pin_number << endl;
-    //     cout << "Connection:" << endl;
-    //     for(int j = 0; j < p[i].connection_number; j++){           
-    //         cout << p[i].connection[j] << " ";
-    //     }
-    //     cout << endl;
-    // }
-    //print netlists 
-    // for(int i = 0; i < number_of_nets; i++){
-    //     if(n[i].connected_block_len != 0){
-    //         cout << i << " : " << endl;
-    //         for(int j = 0; j < n[i].connected_block_len; j++){
-    //             cout << n[i].connected_block[j] << " " << n[i].weight[j] << " ";
-    //         }
-    //         cout << endl;
-    //     }
-    // }
-    //print fixed items
-    // for(int i = 0; i < num_of_fixed; i++){
-    //     cout << fp[i].pin_number << " " << fp[i].x_loc << " " << fp[i].y_loc << endl;
-    // }
-    //print die size
-    // cout << max_x << " " << max_y << endl;
     
     make_clique();
     double* x_vec = solve(0);
@@ -398,7 +505,25 @@ int main(){
     // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
     //     cout << x_vec[i] << " " << y_vec[i] << endl; 
     // }
+    int cnt = 0;
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed)
+            continue;
+        else{
+            p[i].x_loc = x_vec[cnt];
+            p[i].y_loc = y_vec[cnt];
+            p[i].moved_x_loc = x_vec[cnt];
+            p[i].moved_y_loc = y_vec[cnt];
+            cnt++;
+        }
+    }
+    
+    //free allocated spaces
+    delete[] x_vec;
+    delete[] y_vec;
+
     create_bin();
+   
 
 
     return 0;
