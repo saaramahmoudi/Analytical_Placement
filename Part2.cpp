@@ -18,7 +18,7 @@ using namespace std;
 struct Bin{
     int x;
     int y;
-    int block_cout;
+    int block_count;
     int* blocks;
 };
 
@@ -305,7 +305,7 @@ void create_bin(){
         for(int j = 0; j < max_y; j++){
             b[num_of_bins].x = i;
             b[num_of_bins].y = j;
-            b[num_of_bins].block_cout = 0;
+            b[num_of_bins].block_count = 0;
             b[num_of_bins].blocks = new int[number_of_pins];
             num_of_bins++;
         }
@@ -326,15 +326,15 @@ void create_bin(){
             b_y = floor(p[i].y_loc> 0 ? p[i].y_loc - 0.001 : 0);
         }
         b_index = find_bin(b_x,b_y);
-        b[b_index].blocks[b[b_index].block_cout] = p[i].pin_number;
-        b[b_index].block_cout++;
+        b[b_index].blocks[b[b_index].block_count] = p[i].pin_number;
+        b[b_index].block_count++;
     }
     /************************************************************Debug*****************************************************************/
     // for(int i = 0; i < num_of_bins; i++){
-    //     if(b[i].block_cout == 0)
+    //     if(b[i].block_count == 0)
     //         continue;
     //     cout << b[i].x << " " << b[i].y << ":" << endl;
-    //     for(int j = 0; j < b[i].block_cout; j++){
+    //     for(int j = 0; j < b[i].block_count; j++){
     //         int index = find_pin(b[i].blocks[j]);
     //         cout << b[i].blocks[j] << " : " << p[index].x_loc << " " << p[index].y_loc << endl; 
     //     }
@@ -343,18 +343,18 @@ void create_bin(){
 }
 
 bool compare_two_bins(Bin b1, Bin b2){
-    return b1.block_cout < b2.block_cout;
+    return b1.block_count < b2.block_count;
 }
 
 Bin* sort_overfilled_bins(){
     overfilled_bins_num = 0;
     for(int i = 0; i < num_of_bins; i++)
-        if(b[i].block_cout > 1)
+        if(b[i].block_count > 1)
             overfilled_bins_num++;
     Bin* overfilled_b = new Bin[overfilled_bins_num];
     overfilled_bins_num = 0;
     for(int i = 0; i < num_of_bins; i++)
-        if(b[i].block_cout > 1){
+        if(b[i].block_count > 1){
             overfilled_b[overfilled_bins_num] = b[i];
             overfilled_bins_num++;
         }
@@ -365,7 +365,7 @@ Bin* sort_overfilled_bins(){
 
 void spread(){
     int itr = 0;
-    int max_allowed_movement = (itr+1)^2;
+    int max_allowed_movement = pow(itr+1,2);
     overfilled_b = sort_overfilled_bins();
     for(int i = 0; i < overfilled_bins_num; i++){
         //TODO: find path and update
@@ -394,7 +394,7 @@ int compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
             move = 1;
         }
     }
-    for(int i = 0; i < tail_bin.block_cout; i++){//blocks placed in tail bin
+    for(int i = 0; i < tail_bin.block_count; i++){//blocks placed in tail bin
         int pid = find_pin(tail_bin.blocks[i]);
         //compute x and y future positions to calculate quardaric distance
         double move_x = p[pid].moved_x_loc;
@@ -412,7 +412,7 @@ int compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
         default: 
             break;
         }
-        distance = (p[pid].x_loc - move_x)^2 + (p[pid].y_loc - move_y)^2;
+        distance = pow((p[pid].x_loc - move_x),2) + pow((p[pid].y_loc - move_y),2);
         if(distance < max_allowed_movement){
             if(distance < cost)
                 cost = distance;
