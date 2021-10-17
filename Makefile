@@ -32,5 +32,8 @@ metis: ../SuiteSparse-5.10.1/include/metis.h
 #-------------------------------------------------------------------------------
 
 Part1: Part1.cpp
-	g++ -std=c++11 -I../SuiteSparse-5.10.1/UMFPACK/Include -I../SuiteSparse-5.10.1/include  Part1.cpp $(LIBS)
+	g++ -std=c++11 -I../SuiteSparse-5.10.1/UMFPACK/Include -I../SuiteSparse-5.10.1/include  Part1.cpp $(LIBS) -o Part1.o
+
+Part2: Part2.cpp
+	g++ -std=c++11 -I../SuiteSparse-5.10.1/UMFPACK/Include -I../SuiteSparse-5.10.1/include  Part2.cpp $(LIBS) -o Part2.o
 
