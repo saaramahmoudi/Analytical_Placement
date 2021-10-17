@@ -6,7 +6,6 @@
 #include <limits.h>
 #include "umfpack.h"
 
-
 using namespace std;
 
 #define number_of_pins 510
@@ -14,6 +13,8 @@ using namespace std;
 #define max_connection 100
 #define max_fanout 20
 
+//TODO: graphic package
+//TODO: HPWL
 
 struct Fixed_pin{
     int pin_number;
