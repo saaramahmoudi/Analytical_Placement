@@ -20,6 +20,7 @@ struct Bin{
     int y;
     int block_count;
     int* blocks;
+    bool visited;
 };
 
 struct Fixed_pin{
@@ -307,6 +308,7 @@ void create_bin(){
             b[num_of_bins].y = j;
             b[num_of_bins].block_count = 0;
             b[num_of_bins].blocks = new int[number_of_pins];
+            b[num_of_bins].visited = false;
             num_of_bins++;
         }
     }
@@ -362,19 +364,8 @@ Bin* sort_overfilled_bins(){
     return overfilled_b;
 }
 
-
-void spread(){
-    int itr = 0;
-    int max_allowed_movement = pow(itr+1,2);
-    overfilled_b = sort_overfilled_bins();
-    for(int i = 0; i < overfilled_bins_num; i++){
-        //TODO: find path and update
-        
-    }
-}
-
 //TODO: CHECK COMPUTE COST
-int compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
+double compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
     double cost = DBL_MAX; 
     double distance = 0;
     int move = -1; //0 : up, 1 : down, 2 : right, 3: left
@@ -421,6 +412,104 @@ int compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
     return cost;
 }
 
+//TODO : Check BFS
+queue<Bin>* find_path(int supply_bk, Bin bk, int max_allowed_movement){
+    int demand = 0;
+    int max_path = 500;
+    queue<Bin>* path = new queue<Bin>[max_path];
+    queue<Bin>* final_path = new queue<Bin>[supply_bk];
+    double* path_cost = new double[max_path];
+    for(int i = 0; i < max_path; i++)
+        path_cost[i] = 0;
+    int counter = 0;
+    for(int i = 0; i < num_of_bins; i++)
+        b[i].visited = false;
+    int b_index = find_bin(bk.x,bk.y);
+    b[b_index].visited = true;
+    queue<queue<Bin>> q;
+    //add bk into an empty path
+    path[counter].push(bk);
+    //add bk into a FIFO queue
+    q.push(path[counter]);
+    while(demand > supply_bk || q.empty()){  
+        queue<Bin> current_path = q.front();
+        q.pop();
+        Bin tail_bin = current_path.front(); //tail bin
+        //tail bin neighbors
+        int cnt = 0;
+        int b_neighbor = -1;
+        while(cnt < 4){
+            switch (cnt)
+            {
+            case 0: b_neighbor = find_bin(tail_bin.x++,tail_bin.y);
+                break;
+            case 1: b_neighbor = find_bin(tail_bin.x--,tail_bin.y);
+                break;
+            case 2: b_neighbor = find_bin(tail_bin.x,tail_bin.y++);
+                break;
+            case 3: b_neighbor = find_bin(tail_bin.x,tail_bin.y--);
+                break;
+            default:
+                break;
+            }
+            cnt++;
+            //if a neighbor does not exist continue
+            if(b_neighbor = -1)
+                continue;
+            //if it is already visited continue
+            if(b[b_neighbor].visited)
+                continue;
+
+            double cost = compute_cost(tail_bin,b[b_neighbor],max_allowed_movement);
+            if(cost < DBL_MAX){//path cost is less than infinity
+               queue<Bin> pcopy = current_path;
+               double cost_of_pcopy = path_cost[counter] + cost;
+               b[b_neighbor].visited = true;
+               if(b[b_neighbor].block_count == 0){
+                   while(pcopy.empty()){
+                       Bin b_copy = pcopy.front();
+                       pcopy.pop();
+                       final_path[demand].push(b_copy);
+                   }
+                   demand++;
+               }
+               else{
+                   q.push(pcopy);
+                   path_cost[counter] = cost;
+                   counter++;
+               }
+
+            }
+        }
+
+    }
+    delete[] path_cost;
+    delete[] path;
+    return final_path;
+}
+
+
+void spread(){
+    int itr = 0;
+    int max_allowed_movement = pow(itr+1,2);
+    overfilled_b = sort_overfilled_bins();
+    for(int i = 0; i < overfilled_bins_num; i++){
+        cout << overfilled_b[i].x << " " << overfilled_b[i].y << endl;
+        queue<Bin>* possible_path = find_path(overfilled_b[i].block_count-1,overfilled_b[i],max_allowed_movement);
+        for(int j = 0; j < overfilled_b[i].block_count-1;j++){
+            //print path
+            cout << "==========================================" << endl;
+            while(possible_path[j].empty()){
+                Bin b_front = possible_path[j].front();
+                possible_path[i].pop();
+                cout << b_front.x << " " << b_front.y << endl; 
+            }
+        }
+        //remove this break
+        break;
+        
+    }
+}
 
 int main(){
     string fileName;
@@ -523,7 +612,7 @@ int main(){
     delete[] y_vec;
 
     create_bin();
-   
+    spread();
 
 
     return 0;
