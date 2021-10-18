@@ -288,6 +288,7 @@ double* solve(int dim){
     delete[] Ap;
     delete[] Ax;
     delete[] Ai;
+    delete[] in_vector;
     return x;
 }
 
@@ -364,7 +365,7 @@ Bin* sort_overfilled_bins(){
     return overfilled_b;
 }
 
-//TODO: CHECK COMPUTE COST
+
 double compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
     double cost = DBL_MAX; 
     double distance = 0;
@@ -404,7 +405,7 @@ double compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
             break;
         }
         distance = pow((p[pid].x_loc - move_x),2) + pow((p[pid].y_loc - move_y),2);
-        if(distance < max_allowed_movement){
+        if(distance <= max_allowed_movement){
             if(distance < cost)
                 cost = distance;
         }
@@ -412,7 +413,6 @@ double compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
     return cost;
 }
 
-//TODO : Check BFS
 queue<Bin>* find_path(int supply_bk, Bin bk, int max_allowed_movement){
     int demand = 0;
     int max_path = 500;
@@ -431,45 +431,46 @@ queue<Bin>* find_path(int supply_bk, Bin bk, int max_allowed_movement){
     path[counter].push(bk);
     //add bk into a FIFO queue
     q.push(path[counter]);
-    while(demand > supply_bk || q.empty()){  
+    while(demand < supply_bk && !q.empty()){  
         queue<Bin> current_path = q.front();
         q.pop();
         Bin tail_bin = current_path.front(); //tail bin
         //tail bin neighbors
         int cnt = 0;
         int b_neighbor = -1;
-        while(cnt < 4){
+        while(cnt < 4 && demand < supply_bk){
             switch (cnt)
             {
-            case 0: b_neighbor = find_bin(tail_bin.x++,tail_bin.y);
+            case 0: b_neighbor = find_bin(tail_bin.x+1,tail_bin.y);
                 break;
-            case 1: b_neighbor = find_bin(tail_bin.x--,tail_bin.y);
+            case 1: b_neighbor = find_bin(tail_bin.x-1,tail_bin.y);
                 break;
-            case 2: b_neighbor = find_bin(tail_bin.x,tail_bin.y++);
+            case 2: b_neighbor = find_bin(tail_bin.x,tail_bin.y+1);
                 break;
-            case 3: b_neighbor = find_bin(tail_bin.x,tail_bin.y--);
+            case 3: b_neighbor = find_bin(tail_bin.x,tail_bin.y-1);
                 break;
             default:
                 break;
             }
             cnt++;
+            
             //if a neighbor does not exist continue
-            if(b_neighbor = -1)
+            if(b_neighbor == -1)
                 continue;
             //if it is already visited continue
             if(b[b_neighbor].visited)
                 continue;
-
             double cost = compute_cost(tail_bin,b[b_neighbor],max_allowed_movement);
             if(cost < DBL_MAX){//path cost is less than infinity
+               current_path.push(b[b_neighbor]);
                queue<Bin> pcopy = current_path;
                double cost_of_pcopy = path_cost[counter] + cost;
                b[b_neighbor].visited = true;
                if(b[b_neighbor].block_count == 0){
-                   while(pcopy.empty()){
-                       Bin b_copy = pcopy.front();
-                       pcopy.pop();
-                       final_path[demand].push(b_copy);
+                   while(!pcopy.empty()){
+                        Bin b_copy = pcopy.front();
+                        pcopy.pop();
+                        final_path[demand].push(b_copy);    
                    }
                    demand++;
                }
@@ -478,10 +479,9 @@ queue<Bin>* find_path(int supply_bk, Bin bk, int max_allowed_movement){
                    path_cost[counter] = cost;
                    counter++;
                }
-
             }
         }
-
+        cnt = 0;
     }
     delete[] path_cost;
     delete[] path;
@@ -494,20 +494,18 @@ void spread(){
     int max_allowed_movement = pow(itr+1,2);
     overfilled_b = sort_overfilled_bins();
     for(int i = 0; i < overfilled_bins_num; i++){
-        cout << overfilled_b[i].x << " " << overfilled_b[i].y << endl;
         queue<Bin>* possible_path = find_path(overfilled_b[i].block_count-1,overfilled_b[i],max_allowed_movement);
+        cout << overfilled_b[i].x << " " << overfilled_b[i].y << endl;
         for(int j = 0; j < overfilled_b[i].block_count-1;j++){
-            //print path
-            cout << "==========================================" << endl;
-            while(possible_path[j].empty()){
-                Bin b_front = possible_path[j].front();
-                possible_path[i].pop();
-                cout << b_front.x << " " << b_front.y << endl; 
-            }
+            // //print path
+            // cout << "==========================================" << endl;
+            // cout << possible_path[j].size() << endl;
+            // while(!possible_path[j].empty()){
+            //     Bin b_front = possible_path[j].front();
+            //     possible_path[j].pop();
+            //     cout << b_front.x << " " << b_front.y << endl; 
+            // }
         }
-        //remove this break
-        break;
-        
     }
 }
 
