@@ -497,14 +497,6 @@ void spread(){
         queue<Bin>* possible_path = find_path(overfilled_b[i].block_count-1,overfilled_b[i],max_allowed_movement);
         cout << overfilled_b[i].x << " " << overfilled_b[i].y << endl;
         for(int j = 0; j < overfilled_b[i].block_count-1;j++){
-            // //print path
-            // cout << "==========================================" << endl;
-            // cout << possible_path[j].size() << endl;
-            // while(!possible_path[j].empty()){
-            //     Bin b_front = possible_path[j].front();
-            //     possible_path[j].pop();
-            //     cout << b_front.x << " " << b_front.y << endl; 
-            // }
         }
     }
 }
