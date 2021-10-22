@@ -366,8 +366,9 @@ Bin* sort_overfilled_bins(){
 }
 
 
-double compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
+pair<double,int> compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
     double cost = DBL_MAX; 
+    int pin_num_with_least_cost = -1;
     double distance = 0;
     int move = -1; //0 : up, 1 : down, 2 : right, 3: left
     if(tail_bin.x == bk.x){
@@ -406,18 +407,24 @@ double compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
         }
         distance = pow((p[pid].x_loc - move_x),2) + pow((p[pid].y_loc - move_y),2);
         if(distance <= max_allowed_movement){
-            if(distance < cost)
+            if(distance < cost){
                 cost = distance;
+                pin_num_with_least_cost = tail_bin.blocks[i];
+            }
         }
     }
-    return cost;
+    pair<double,int> cost_pair;
+    cost_pair.first = cost;
+    cost_pair.second = pin_num_with_least_cost;
+    return cost_pair;
 }
 
-queue<Bin>* find_path(int supply_bk, Bin bk, int max_allowed_movement){
+pair<double*,queue<Bin>*> find_path(int supply_bk, Bin bk, int max_allowed_movement){
     int demand = 0;
     int max_path = 500;
     queue<Bin>* path = new queue<Bin>[max_path];
     queue<Bin>* final_path = new queue<Bin>[supply_bk];
+    double* final_path_cost = new double[supply_bk];
     double* path_cost = new double[max_path];
     for(int i = 0; i < max_path; i++)
         path_cost[i] = 0;
@@ -429,7 +436,7 @@ queue<Bin>* find_path(int supply_bk, Bin bk, int max_allowed_movement){
     queue<queue<Bin>> q;
     //add bk into an empty path
     path[counter].push(bk);
-    //add bk into a FIFO queue
+    //add path into a FIFO queue
     q.push(path[counter]);
     while(demand < supply_bk && !q.empty()){  
         queue<Bin> current_path = q.front();
@@ -460,18 +467,32 @@ queue<Bin>* find_path(int supply_bk, Bin bk, int max_allowed_movement){
             //if it is already visited continue
             if(b[b_neighbor].visited)
                 continue;
-            double cost = compute_cost(tail_bin,b[b_neighbor],max_allowed_movement);
+            pair<double,int> cost_res = compute_cost(tail_bin,b[b_neighbor],max_allowed_movement);
+            double cost = cost_res.first;
             if(cost < DBL_MAX){//path cost is less than infinity
-               current_path.push(b[b_neighbor]);
                queue<Bin> pcopy = current_path;
-               double cost_of_pcopy = path_cost[counter] + cost;
+               pcopy.push(b[b_neighbor]);
+               double cost_of_pcopy = path_cost[counter-1] + cost;
                b[b_neighbor].visited = true;
-               if(b[b_neighbor].block_count == 0){
+               if(b[b_neighbor].block_count == 0){// b neighbor is empty
                    while(!pcopy.empty()){
                         Bin b_copy = pcopy.front();
                         pcopy.pop();
                         final_path[demand].push(b_copy);    
-                   }
+                    }
+                    final_path_cost[demand] = cost_of_pcopy;
+                    /************************************************************Debug*****************************************************************/
+                    //     queue<Bin> temp = final_path[demand];
+                    //     cout << "================================================================================" << endl;
+                    //     cout << "source bin " << bk.x << " " << bk.y << endl;
+                    //     cout << "neighbor: " << b[b_neighbor].x << " " << b[b_neighbor].y << endl;
+                    //     cout << cost_of_pcopy << endl;
+                    //     cout << "size of path: " << temp.size() << endl;
+                    //     while(!temp.empty()){
+                    //         Bin b_print = temp.front();
+                    //         temp.pop();
+                    //         cout << "bin location in path " << b_print.x << " " << b_print.y << endl;
+                    // }
                    demand++;
                }
                else{
@@ -483,21 +504,159 @@ queue<Bin>* find_path(int supply_bk, Bin bk, int max_allowed_movement){
         }
         cnt = 0;
     }
+    pair<double*,queue<Bin>*> res;
+    res.second = final_path;
+    res.first = final_path_cost;
     delete[] path_cost;
     delete[] path;
-    return final_path;
+
+    /************************************************************Debug*****************************************************************/
+    // print all the possible path
+    // cout << "max movement: " << max_allowed_movement << endl;
+    // double* temp = res.first;
+    // queue<Bin>* temp1 = res.second;
+    // for(int i = 0; i < demand; i++){
+    //     queue<Bin> temp = temp1[i];
+    //     cout << "================================================================================" << endl;
+    //     while(!temp.empty()){
+    //         Bin b_print = temp.front();
+    //         temp.pop();
+    //         cout << "bin location in path " << b_print.x << " " << b_print.y << endl;
+    //     }
+    // }    
+    return res;
 }
 
-
-void spread(){
-    int itr = 0;
-    int max_allowed_movement = pow(itr+1,2);
-    overfilled_b = sort_overfilled_bins();
-    for(int i = 0; i < overfilled_bins_num; i++){
-        queue<Bin>* possible_path = find_path(overfilled_b[i].block_count-1,overfilled_b[i],max_allowed_movement);
-        cout << overfilled_b[i].x << " " << overfilled_b[i].y << endl;
-        for(int j = 0; j < overfilled_b[i].block_count-1;j++){
+void sort_queue(double* &q, queue<Bin>* &q_parallel,int n){
+    for (int i = 0; i < n-1; i++){    
+        for (int j = 0; j < n-i-1; j++){
+            if (q[j] > q[j+1]){
+                double temp = q[j];
+                q[j] = q[j+1];
+                q[j+1] = temp;
+                queue <Bin> temp1 = q_parallel[j];
+                q_parallel[j] = q_parallel[j+1];
+                q_parallel[j+1] = temp1;
+            }
         }
+    }
+}
+
+void spread(){//must go inside a loop untill no overfilled bin is available
+    int itr = 0;
+    overfilled_b = sort_overfilled_bins();
+    while(overfilled_bins_num != 0){//there is no empty bin left!
+        int max_allowed_movement = pow(itr+1,2);
+        for(int i = 0; i < overfilled_bins_num; i++){
+            int overfilled_b_id = find_bin(overfilled_b[i].x,overfilled_b[i].y);
+            pair<double*,queue<Bin>*> possible_path_pair = find_path(b[overfilled_b_id].block_count-1,overfilled_b[i],max_allowed_movement);
+            queue<Bin>* possible_path = possible_path_pair.second;
+            double* possible_path_cost = possible_path_pair.first;
+            sort_queue(possible_path_cost,possible_path,b[overfilled_b_id].block_count-1);
+            int index = 0;  
+             /************************************************************Debug*****************************************************************/
+            cout << "========================BIN ID========================" << endl;
+            cout << "bin loc: " << b[overfilled_b_id].x << " " << b[overfilled_b_id].y << endl; 
+            cout << "Max Movement: " << max_allowed_movement << endl;
+            
+            for(int j = 0; j < b[overfilled_b_id].block_count-1;j++){//loop over possible path
+                /************************************************************Debug*****************************************************************/
+                //print possible path!
+                // int inp = 0;
+                // cout << "Bin loc: " << overfilled_b[i].x << " " << overfilled_b[i].y << endl;
+                // cout << "Number of path " << b[overfilled_b_id].block_count-1 << endl;
+                // for(int i = 0; i < b[overfilled_b_id].block_count-1; i++){
+                //     queue<Bin> possible_path_copy = possible_path[inp];
+                //     cout << "=========================================================" << endl;
+                //     while (!possible_path_copy.empty()){
+                //         Bin b_print = possible_path_copy.front();
+                //         cout << "bin location in path " << b_print.x << " " << b_print.y << endl;
+                //         possible_path_copy.pop();
+                //     }
+                // }
+                // cout << "========================================================" << endl;
+                // inp++;
+                if(b[overfilled_b_id].block_count > 1){//bin is still overfilled
+                    // cout << b[overfilled_b_id].block_count << endl;
+                    
+                    queue<Bin> possible_path_copy = possible_path[index];
+                    if(possible_path_copy.empty()){//if no path has been found break the loop
+                        break;
+                    }
+                    bool valid_path = true; //cells can be moved without violating max_allowed_movement along the path
+                    stack<Bin> bin_stack;
+                    Bin b_source = possible_path_copy.front();
+                    possible_path_copy.pop();
+                    bin_stack.push(b_source);
+                    // cout << "path size: " << possible_path_copy.size() << endl;
+                    while(!possible_path_copy.empty()){
+                        Bin b_sink = possible_path_copy.front();
+                        possible_path_copy.pop();
+                        Bin b_src = bin_stack.top();
+                        bin_stack.pop();
+                        pair<double,int> cost_revised = compute_cost(b_src,b_sink,max_allowed_movement);
+                        double cost = cost_revised.first;
+                        /************************************************************Debug*****************************************************************/
+                        cout << "Source: " << b_src.x << " " << b_src.y << endl;
+                        cout << "Target: " << b_sink.x << " " << b_sink.y << endl;
+                        cout << "Cost: " << cost << endl;
+                        if(cost == DBL_MAX){
+                            valid_path = false;
+                            break;
+                        }
+                        bin_stack.push(b_sink);
+                    }
+                    if(valid_path){//start moving cell along path[index]
+                        possible_path_copy = possible_path[index];
+                        Bin b_src = possible_path_copy.front();
+                        possible_path_copy.pop();
+                        while(!possible_path_copy.empty()){
+                            Bin b_sink = possible_path_copy.front();
+                            possible_path_copy.pop();
+                            pair<double,int> cost_revised = compute_cost(b_src,b_sink,max_allowed_movement);
+                            /************************************************************Debug*****************************************************************/
+                            cout << "=====================MOVE==============" << endl;
+                            cout << "source: " << b_src.x << " " << b_src.y << endl;
+                            cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
+                            cout << cost_revised.first << " " << cost_revised.second << endl; 
+                            
+                            if(cost_revised.second < 0){
+                                cout << "ERROR: No cell found to move!!" << endl;
+                            }
+                            else{
+                                int pid = find_pin(cost_revised.second);
+                                int b_src_id = find_bin(b_src.x,b_src.y);
+                                int b_sink_id = find_bin(b_sink.x,b_sink.y);
+                                b[b_src_id].block_count--;
+                                b[b_sink_id].block_count++;
+                                if(b_src.x == b_sink.x){
+                                    if(b_sink.y > b_src.y){ //right
+                                        p[pid].moved_y_loc++;
+                                    }
+                                    else{//left
+                                        p[pid].moved_y_loc--;
+                                    }
+                                }
+                                else if(b_src.y == b_sink.y){
+                                    if(b_sink.x > b_src.x) {//up
+                                        p[pid].moved_x_loc++;
+                                    }
+                                    else{//down
+                                        p[pid].moved_x_loc--;
+                                    }
+                                }
+                            }
+                            b_src = b_sink;
+                        }
+                    }
+                    index++;
+                    if(index >= b[overfilled_b_id].block_count-1){//possible path ended
+                        break;
+                    }
+                }
+            }
+        }
+        itr++;
     }
 }
 
