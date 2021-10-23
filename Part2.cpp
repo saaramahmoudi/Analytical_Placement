@@ -109,6 +109,7 @@ int find_fixed_pin(int pin_number){
     return -1;
 }
 
+
 double** cal_weight(){
     //Calculate Weight Matrix
     double** pre_weight_mat = new double*[num_of_blocks];
@@ -342,7 +343,7 @@ void create_bin(){
 }
 
 bool compare_two_bins(Bin b1, Bin b2){
-    return b1.block_count < b2.block_count;
+    return b1.block_count > b2.block_count;
 }
 
 Bin* sort_overfilled_bins(){
@@ -424,7 +425,7 @@ pair<double,int> compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
         if(distance <= max_allowed_movement){
             if(distance < cost){
                 cost = distance;
-                pin_num_with_least_cost = tail_bin.blocks[i];
+                pin_num_with_least_cost = p[pid].pin_number;
             }
         }
     }
@@ -664,7 +665,7 @@ void spread(){
                         // cout << "Source: " << b_src.x << " " << b_src.y << endl;
                         // cout << "Target: " << b_sink.x << " " << b_sink.y << endl;
                         // cout << "Cost: " << cost << endl;
-                        if(cost == DBL_MAX){
+                        if(cost == DBL_MAX || cost_revised.second <= 0){
                             /************************************************************Debug*****************************************************************/
                             // cout << "INVALID PATH CATCH" << endl;
                             // cout << index << endl;
@@ -683,34 +684,45 @@ void spread(){
                             Bin b_src = possible_path_copy.front();
                             possible_path_copy.pop();
                             pair<double,int> cost_revised = compute_cost(b_src,b_sink,max_allowed_movement);
-                            /************************************************************Debug*****************************************************************/
-                            // cout << "=====================MOVE==============" << endl;
-                            // cout << "source: " << b_src.x << " " << b_src.y << endl; 
-                            // cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
-                            
-                            if(cost_revised.second < 0){
+                            if(cost_revised.second <= 0){
                                 cout << "ERROR: No cell found to move!!" << endl;
                             }
                             else{
                                 int pid = find_pin(cost_revised.second);
                                 int b_src_id = find_bin(b_src.x,b_src.y);
                                 int b_sink_id = find_bin(b_sink.x,b_sink.y);
-                                remove_cell_from_bin(pid,b_src_id);
+                                cout << "=====================BMOVE==============" << endl;
+                                cout << "moving cell " << p[pid].pin_number <<" " << cost_revised.second << endl;
+                                cout << "source: " << b_src.x << " " << b_src.y << endl; 
+                                cout << "source block count: " << b[b_src_id].block_count << endl;
+                                for(int i = 0; i < b[b_src_id].block_count; i++){
+                                    cout << b[b_src_id].blocks[i] << " ";
+                                }
+                                cout << endl;
+                                cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
+                                cout << "sink block count: " << b[b_sink_id].block_count << endl;
+                                for(int j =0 ;j < b[b_sink_id].block_count;j++){
+                                    cout << b[b_sink_id].blocks[j] << " ";
+                                }
+                                cout << endl;
+                                remove_cell_from_bin(p[pid].pin_number,b_src_id);
                                 b[b_sink_id].blocks[b[b_sink_id].block_count] = p[pid].pin_number;
                                 b[b_sink_id].block_count++;
-                                /************************************************************Debug*****************************************************************/
-                                // cout << "=====================MOVE==============" << endl;
-                                // cout << "source: " << b_src.x << " " << b_src.y << endl; 
-                                // cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
-                                // for(int i = 0; i < b[b_src_id].block_count; i++){
-                                //     cout << b[b_src_id].blocks[i] << " ";
-                                // }
-                                // cout << endl;
-                                // cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
-                                // for(int j =0 ;j < b[b_sink_id].block_count;j++){
-                                //     cout << b[b_sink_id].blocks[j] << " ";
-                                // }
-                                // cout << endl;
+                                /************************************************************Debug*****************************************************************/     
+                                cout << "=====================MOVE==============" << endl;
+                                cout << "moving cell " << p[pid].pin_number << endl;
+                                cout << "source: " << b_src.x << " " << b_src.y << endl; 
+                                cout << "source block count: " << b[b_src_id].block_count << endl;
+                                for(int i = 0; i < b[b_src_id].block_count; i++){
+                                    cout << b[b_src_id].blocks[i] << " ";
+                                }
+                                cout << endl;
+                                cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
+                                cout << "sink block count: " << b[b_sink_id].block_count << endl;
+                                for(int j =0 ;j < b[b_sink_id].block_count;j++){
+                                    cout << b[b_sink_id].blocks[j] << " ";
+                                }
+                                cout << endl;
                                 if(b_src.x == b_sink.x){
                                     if(b_sink.y > b_src.y){ //right
                                         p[pid].moved_y_loc++;
@@ -895,6 +907,7 @@ int main(){
     // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
     //     cout << x_vec[i] << " " << y_vec[i] << endl; 
     // }
+    
     int cnt = 0;
     for(int i = 0; i < num_of_blocks; i++){
         if(p[i].fixed)
@@ -912,29 +925,30 @@ int main(){
     delete[] x_vec;
     delete[] y_vec;
     double HPWL_before_spread = cal_HPWL();
-    cout << "HPWL Before Spread: " << HPWL_before_spread << endl;
+    cout << "HPWL: " << HPWL_before_spread << endl;
     create_bin();
     spread();
     /************************************************************Debug*****************************************************************/
-    // for(int i = 0; i < num_of_bins; i++){
-    //     if(b[i].block_count == 0)
-    //         continue;
-    //     else{
-    //         cout << "==============================================" << endl;
-    //         cout << b[i].x << " " << b[i].y << endl;
-    //         for(int j = 0; j < b[i].block_count; j++){
-    //             int pid_number_temp = find_pin(b[i].blocks[j]);
-    //             int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
-    //             cout << p[pid_number_temp].pin_number << " : ";
-    //             if(p[pid_number_temp].fixed){
-    //                 cout << fp[pid_fixed_temp].x_loc << " " << fp[pid_fixed_temp].y_loc << endl;
-    //             }
-    //             else{
-    //                 cout << p[pid_number_temp].moved_x_loc << " " << p[pid_number_temp].moved_y_loc << endl;
-    //             }
-    //         }
-    //     }
-    // }
+    for(int i = 0; i < num_of_bins; i++){
+        if(b[i].block_count == 0)
+            continue;
+        else{
+            cout << "==============================================" << endl;
+            cout << b[i].x << " " << b[i].y << endl;
+            for(int j = 0; j < b[i].block_count; j++){
+                cout << b[i].blocks[j] << endl;
+                int pid_number_temp = find_pin(b[i].blocks[j]);
+                int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
+                if(p[pid_number_temp].fixed){
+                    cout << fp[pid_fixed_temp].x_loc << " " << fp[pid_fixed_temp].y_loc << endl;
+                }
+                else{
+                    cout << p[pid_number_temp].moved_x_loc << " " << p[pid_number_temp].moved_y_loc << endl;
+                }
+            }
+        }
+    }
+
     double displacement_value = cal_displacement();
     cout << "Displacement Value: " << displacement_value << endl; 
     double anchor_weight = 1;
@@ -946,6 +960,7 @@ int main(){
     // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
     //     cout << x_vec1[i] << " " << y_vec1[i] << endl; 
     // }
+    
     delete[] x_vec1;
     delete[] y_vec1;
 
