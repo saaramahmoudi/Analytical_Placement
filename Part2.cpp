@@ -73,8 +73,8 @@ void init(){
     }
 }
 
-//create clique model
 void make_clique(){
+    //create clique model
     for(int i = 0; i < number_of_nets; i++){
         if(n[i].connected_block_len == 0){
             continue;
@@ -102,7 +102,6 @@ int find_pin(int pin_number){
     return -1;
 }
 
-
 int find_fixed_pin(int pin_number){
     for(int i = 0; i < num_of_blocks; i++)
         if(fp[i].pin_number == pin_number)
@@ -110,10 +109,8 @@ int find_fixed_pin(int pin_number){
     return -1;
 }
 
-
-//Calculate Weight Matrix
 double** cal_weight(){
-
+    //Calculate Weight Matrix
     double** pre_weight_mat = new double*[num_of_blocks];
     double** weight_mat = new double*[num_of_blocks - num_of_fixed];
     
@@ -241,8 +238,7 @@ double* cal_fixed(int dim){//dim 0 : x_vector dim 1: y_vecotr
     return dim_vec;
 }
 
-double* solve(int dim){
-    double** weight_mat = cal_weight();
+double* solve(int dim, double** weight_mat){
     int non_zero_elem = 0;
     for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
         for(int j = 0; j < num_of_blocks - num_of_fixed; j++){
@@ -610,7 +606,8 @@ void remove_cell_from_bin(int pin_number,int bin_number){
     b[bin_number].block_count--;
 }
 
-void spread(){//must go inside a loop untill no overfilled bin is available
+void spread(){
+    //must go inside a loop untill no overfilled bin is available
     int itr = 0;
     overfilled_b = sort_overfilled_bins();
     while(overfilled_bins_num != 0){//there is no empty bin left!
@@ -746,7 +743,24 @@ void spread(){//must go inside a loop untill no overfilled bin is available
         overfilled_b = sort_overfilled_bins();
         // cout << overfilled_bins_num<< endl;
     }
-    cout << "done" << endl;
+    // cout << "done" << endl;
+}
+
+double** add_anchor(double** weight_mat,double anchor_weight){
+    double** anchor_weight_mat = new double*[num_of_blocks - num_of_fixed];
+    for(int i = 0; i < num_of_blocks-num_of_fixed; i++)
+        anchor_weight_mat[i] = new double[num_of_blocks - num_of_fixed]; 
+    for(int i = 0; i < num_of_blocks - num_of_fixed; i++){
+        for(int j = 0; j < num_of_blocks-num_of_fixed; j++){
+            if(i != j){
+                anchor_weight_mat[i][j] = weight_mat[i][j];
+            }
+            else{
+                anchor_weight_mat[i][j] = weight_mat[i][j] + anchor_weight;
+            }
+        }
+    }
+    return anchor_weight_mat;
 }
 
 int main(){
@@ -826,12 +840,13 @@ int main(){
     }
     
     make_clique();
-    double* x_vec = solve(0);
-    double* y_vec = solve(1);
+    double** weight_mat = cal_weight();
+    double* x_vec = solve(0,weight_mat);
+    double* y_vec = solve(1,weight_mat);
     /************************************************************Debug*****************************************************************/
-    // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
-    //     cout << x_vec[i] << " " << y_vec[i] << endl; 
-    // }
+    for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
+        cout << x_vec[i] << " " << y_vec[i] << endl; 
+    }
     int cnt = 0;
     for(int i = 0; i < num_of_blocks; i++){
         if(p[i].fixed)
@@ -852,26 +867,34 @@ int main(){
     create_bin();
     spread();
     /************************************************************Debug*****************************************************************/
-    for(int i = 0; i < num_of_bins; i++){
-        if(b[i].block_count == 0)
-            continue;
-        else{
-            cout << "==============================================" << endl;
-            cout << b[i].x << " " << b[i].y << endl;
-            for(int j = 0; j < b[i].block_count; j++){
-                int pid_number_temp = find_pin(b[i].blocks[j]);
-                int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
-                cout << p[pid_number_temp].pin_number << " : ";
-                if(p[pid_number_temp].fixed){
-                    cout << fp[pid_fixed_temp].x_loc << " " << fp[pid_fixed_temp].y_loc << endl;
-                }
-                else{
-                    cout << p[pid_number_temp].moved_x_loc << " " << p[pid_number_temp].moved_y_loc << endl;
-                }
-            }
-        }
+    // for(int i = 0; i < num_of_bins; i++){
+    //     if(b[i].block_count == 0)
+    //         continue;
+    //     else{
+    //         cout << "==============================================" << endl;
+    //         cout << b[i].x << " " << b[i].y << endl;
+    //         for(int j = 0; j < b[i].block_count; j++){
+    //             int pid_number_temp = find_pin(b[i].blocks[j]);
+    //             int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
+    //             cout << p[pid_number_temp].pin_number << " : ";
+    //             if(p[pid_number_temp].fixed){
+    //                 cout << fp[pid_fixed_temp].x_loc << " " << fp[pid_fixed_temp].y_loc << endl;
+    //             }
+    //             else{
+    //                 cout << p[pid_number_temp].moved_x_loc << " " << p[pid_number_temp].moved_y_loc << endl;
+    //             }
+    //         }
+    //     }
+    // }
+    double anchor_weight = 1;
+    double** anchor_weight_mat = add_anchor(weight_mat,anchor_weight);
+    double* x_vec1 = solve(0,anchor_weight_mat);
+    double* y_vec1 = solve(1,anchor_weight_mat);  
+    /************************************************************Debug*****************************************************************/
+    cout << "solved again" << endl;
+    for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
+        cout << x_vec1[i] << " " << y_vec1[i] << endl; 
     }
-    
 
 
 
