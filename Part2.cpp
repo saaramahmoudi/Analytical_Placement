@@ -363,11 +363,23 @@ Bin* sort_overfilled_bins(){
         }
     sort(overfilled_b,overfilled_b+overfilled_bins_num,compare_two_bins);
     /************************************************************Debug*****************************************************************/
-    // cout << "//////////////////overfilled//////////////////" << endl;
-    // for(int i = 0; i < overfilled_bins_num; i++){
-    //     cout << overfilled_b[i].x << " " << overfilled_b[i].y << " " << overfilled_b[i].block_count << endl;
+    // cout << "/////////////////BINS/////////////////" << endl;
+    // for(int i = 0; i < max_x*max_y; i++){
+    //     if(b[i].block_count == 0){
+    //         continue;
+    //     }
+    //     cout << b[i].x << " " << b[i].y << endl;
+    //     cout << "CELL IN THIS BIN" << endl;
+    //     for(int j = 0; j < b[i].block_count; j++){
+    //         int pid_temp = find_pin(b[i].blocks[j]);
+    //         int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
+    //         if(!p[pid_temp].fixed)
+    //             cout << p[pid_temp].pin_number << " : " << p[pid_temp].moved_x_loc <<" " << p[pid_temp].moved_y_loc << endl;
+    //         else
+    //             cout << fp[pid_fixed_temp].pin_number << " : " << fp[pid_fixed_temp].x_loc <<" " << fp[pid_fixed_temp].y_loc << endl;
+    //     }
+    //     cout << "===============================" << endl;
     // }
-
     return overfilled_b;
 }
 
@@ -581,6 +593,23 @@ void reverse_queue(queue<Bin>& Queue)
     }
 }
 
+int find_cell_in_bin(int pin_number,int bin_number){
+    for(int i = 0; i < b[bin_number].block_count; i++){
+        if(b[bin_number].blocks[i] == pin_number){
+            return i;
+        }
+    }
+    return -1;
+}
+
+void remove_cell_from_bin(int pin_number,int bin_number){
+    int index = find_cell_in_bin(pin_number,bin_number);
+    for(int i = index; i < b[bin_number].block_count; i++){
+        b[bin_number].blocks[i] = b[bin_number].blocks[i+1];
+    }
+    b[bin_number].block_count--;
+}
+
 void spread(){//must go inside a loop untill no overfilled bin is available
     int itr = 0;
     overfilled_b = sort_overfilled_bins();
@@ -670,10 +699,22 @@ void spread(){//must go inside a loop untill no overfilled bin is available
                                 int pid = find_pin(cost_revised.second);
                                 int b_src_id = find_bin(b_src.x,b_src.y);
                                 int b_sink_id = find_bin(b_sink.x,b_sink.y);
-                                b[b_src_id].block_count--;
+                                remove_cell_from_bin(pid,b_src_id);
                                 b[b_sink_id].blocks[b[b_sink_id].block_count] = p[pid].pin_number;
                                 b[b_sink_id].block_count++;
-
+                                /************************************************************Debug*****************************************************************/
+                                // cout << "=====================MOVE==============" << endl;
+                                // cout << "source: " << b_src.x << " " << b_src.y << endl; 
+                                // cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
+                                // for(int i = 0; i < b[b_src_id].block_count; i++){
+                                //     cout << b[b_src_id].blocks[i] << " ";
+                                // }
+                                // cout << endl;
+                                // cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
+                                // for(int j =0 ;j < b[b_sink_id].block_count;j++){
+                                //     cout << b[b_sink_id].blocks[j] << " ";
+                                // }
+                                // cout << endl;
                                 if(b_src.x == b_sink.x){
                                     if(b_sink.y > b_src.y){ //right
                                         p[pid].moved_y_loc++;
@@ -810,15 +851,27 @@ int main(){
 
     create_bin();
     spread();
-
-    // for(int i = 0; i < num_of_blocks; i++){
-    //     if(!p[i].fixed)
-    //         cout << p[i].moved_x_loc << " " << p[i].moved_y_loc << endl;
-    //     else{
-    //         int p_fix_index = find_fixed_pin(p[i].pin_number);
-    //         cout << fp[p_fix_index].x_loc << " " << fp[p_fix_index].y_loc<< endl;
-    //     }
-    // }
+    /************************************************************Debug*****************************************************************/
+    for(int i = 0; i < num_of_bins; i++){
+        if(b[i].block_count == 0)
+            continue;
+        else{
+            cout << "==============================================" << endl;
+            cout << b[i].x << " " << b[i].y << endl;
+            for(int j = 0; j < b[i].block_count; j++){
+                int pid_number_temp = find_pin(b[i].blocks[j]);
+                int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
+                cout << p[pid_number_temp].pin_number << " : ";
+                if(p[pid_number_temp].fixed){
+                    cout << fp[pid_fixed_temp].x_loc << " " << fp[pid_fixed_temp].y_loc << endl;
+                }
+                else{
+                    cout << p[pid_number_temp].moved_x_loc << " " << p[pid_number_temp].moved_y_loc << endl;
+                }
+            }
+        }
+    }
+    
 
 
 
