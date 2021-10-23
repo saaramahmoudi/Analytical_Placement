@@ -379,7 +379,6 @@ Bin* sort_overfilled_bins(){
     return overfilled_b;
 }
 
-
 pair<double,int> compute_cost(Bin tail_bin, Bin bk, int max_allowed_movement){
     double cost = DBL_MAX; 
     int pin_num_with_least_cost = -1;
@@ -763,6 +762,55 @@ double** add_anchor(double** weight_mat,double anchor_weight){
     return anchor_weight_mat;
 }
 
+double cal_HPWL(){
+    double HPWL = 0; 
+    double p_x_max = DBL_MIN;
+    double p_y_max = DBL_MIN; 
+    double p_x_min = DBL_MAX;
+    double p_y_min = DBL_MAX;
+    for(int i = 0; i < number_of_nets; i++){
+        if(n[i].connected_block_len == 0)
+            continue;
+        for(int j = 0; j < n[i].connected_block_len ; j++){
+            int pid_temp = find_pin(n[i].connected_block[j]);
+            int pid_fixed_temp = find_fixed_pin(n[i].connected_block[j]);
+            double x_loc = (!p[pid_temp].fixed) ? (p[pid_temp].moved_x_loc) : (fp[pid_fixed_temp].x_loc); 
+            double y_loc = (!p[pid_temp].fixed) ? (p[pid_temp].moved_y_loc) : (fp[pid_fixed_temp].y_loc); 
+            // cout << "net number: " << i << " connected to pin : " << p[pid_temp].pin_number << endl;
+            // cout << "pin loc : " << x_loc << " " << y_loc << endl;
+            // cout << "========================================================" << endl; 
+            if(p_x_max < x_loc){
+                p_x_max = x_loc;
+            }
+            if(p_y_max < y_loc){
+                p_y_max = y_loc;
+            }
+            if(p_x_min > x_loc){
+                p_x_min = x_loc;
+            }
+            if(p_y_min > y_loc){
+                p_y_min = y_loc;
+            }
+        }
+        HPWL += (p_y_max - p_y_min) + (p_x_max-p_x_min);
+        p_x_max = DBL_MIN;
+        p_y_max = DBL_MIN; 
+        p_x_min = DBL_MAX;
+        p_y_min = DBL_MAX;
+    }
+    return HPWL;
+}
+
+double cal_displacement(){
+    double displacement_value = 0;
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed)
+            continue;
+        displacement_value += (abs(p[i].moved_x_loc - p[i].x_loc)) + abs((p[i].moved_y_loc - p[i].y_loc));
+    }
+    return displacement_value;
+}
+
 int main(){
     string fileName;
     cout << "Enter the name of test file (cct1.txt)" << endl;
@@ -844,9 +892,9 @@ int main(){
     double* x_vec = solve(0,weight_mat);
     double* y_vec = solve(1,weight_mat);
     /************************************************************Debug*****************************************************************/
-    for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
-        cout << x_vec[i] << " " << y_vec[i] << endl; 
-    }
+    // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
+    //     cout << x_vec[i] << " " << y_vec[i] << endl; 
+    // }
     int cnt = 0;
     for(int i = 0; i < num_of_blocks; i++){
         if(p[i].fixed)
@@ -863,7 +911,8 @@ int main(){
     //free allocated spaces
     delete[] x_vec;
     delete[] y_vec;
-
+    double HPWL_before_spread = cal_HPWL();
+    cout << "HPWL Before Spread: " << HPWL_before_spread << endl;
     create_bin();
     spread();
     /************************************************************Debug*****************************************************************/
@@ -886,17 +935,19 @@ int main(){
     //         }
     //     }
     // }
+    double displacement_value = cal_displacement();
+    cout << "Displacement Value: " << displacement_value << endl; 
     double anchor_weight = 1;
     double** anchor_weight_mat = add_anchor(weight_mat,anchor_weight);
     double* x_vec1 = solve(0,anchor_weight_mat);
     double* y_vec1 = solve(1,anchor_weight_mat);  
     /************************************************************Debug*****************************************************************/
-    cout << "solved again" << endl;
-    for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
-        cout << x_vec1[i] << " " << y_vec1[i] << endl; 
-    }
-
-
+    // cout << "solved again" << endl;
+    // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
+    //     cout << x_vec1[i] << " " << y_vec1[i] << endl; 
+    // }
+    delete[] x_vec1;
+    delete[] y_vec1;
 
     return 0;
 }
