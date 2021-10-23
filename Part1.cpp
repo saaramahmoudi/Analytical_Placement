@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <queue>
 #include <limits.h>
+#include <math.h>
+#include <bits/stdc++.h>
 #include "umfpack.h"
 
 using namespace std;
@@ -14,7 +16,6 @@ using namespace std;
 #define max_fanout 20
 
 //TODO: graphic package
-//TODO: HPWL
 
 struct Fixed_pin{
     int pin_number;
@@ -28,6 +29,8 @@ struct Pin{
     //net connection
     int* connection; 
     bool fixed;
+    double x_loc;
+    double y_loc;
 };
 
 struct Net{
@@ -267,6 +270,46 @@ double* solve(int dim){
 }
 
 
+double cal_HPWL(){
+    double HPWL = 0; 
+    double p_x_max = DBL_MIN;
+    double p_y_max = DBL_MIN; 
+    double p_x_min = DBL_MAX;
+    double p_y_min = DBL_MAX;
+    for(int i = 0; i < number_of_nets; i++){
+        if(n[i].connected_block_len == 0)
+            continue;
+        for(int j = 0; j < n[i].connected_block_len ; j++){
+            int pid_temp = find_pin(n[i].connected_block[j]);
+            int pid_fixed_temp = find_fixed_pin(n[i].connected_block[j]);
+            double x_loc = (!p[pid_temp].fixed) ? (p[pid_temp].x_loc) : (fp[pid_fixed_temp].x_loc); 
+            double y_loc = (!p[pid_temp].fixed) ? (p[pid_temp].y_loc) : (fp[pid_fixed_temp].y_loc); 
+            // cout << "net number: " << i << " connected to pin : " << p[pid_temp].pin_number << endl;
+            // cout << "pin loc : " << x_loc << " " << y_loc << endl;
+            // cout << "========================================================" << endl; 
+            if(p_x_max < x_loc){
+                p_x_max = x_loc;
+            }
+            if(p_y_max < y_loc){
+                p_y_max = y_loc;
+            }
+            if(p_x_min > x_loc){
+                p_x_min = x_loc;
+            }
+            if(p_y_min > y_loc){
+                p_y_min = y_loc;
+            }
+        }
+        HPWL += (p_y_max - p_y_min) + (p_x_max-p_x_min);
+        p_x_max = DBL_MIN;
+        p_y_max = DBL_MIN; 
+        p_x_min = DBL_MAX;
+        p_y_min = DBL_MAX;
+    }
+    return HPWL;
+}
+
+
 int main(){
     string fileName;
     cout << "Enter the name of test file (cct1.txt)" << endl;
@@ -367,9 +410,23 @@ int main(){
     double* x_vec = solve(0);
     double* y_vec = solve(1);
     /************************************************************Debug*****************************************************************/
-    for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
-        cout << x_vec[i] << " " << y_vec[i] << endl; 
+    // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
+    //     cout << x_vec[i] << " " << y_vec[i] << endl; 
+    // }
+    int cnt = 0;
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed)
+            continue;
+        else{
+            p[i].x_loc = x_vec[cnt];
+            p[i].y_loc = y_vec[cnt];
+            cnt++;
+        }
     }
-    
+    delete[] x_vec;
+    delete[] y_vec;
+    double HPWL = cal_HPWL();
+    cout << "HPWL: " << HPWL << endl;
+
     return 0;
 }
