@@ -7,6 +7,7 @@
 #include <math.h>
 #include <bits/stdc++.h>
 #include "umfpack.h"
+#include "graphics.h"
 
 using namespace std;
 
@@ -15,7 +16,8 @@ using namespace std;
 #define max_connection 100
 #define max_fanout 20
 
-//TODO: graphic package
+void drawscreen (void);
+void act_on_button_press (float x, float y);
 
 struct Fixed_pin{
     int pin_number;
@@ -46,6 +48,8 @@ Pin* p;
 Net* n;
 int num_of_blocks = 0;
 int num_of_fixed = 0;
+int max_x = -1;
+int max_y = -1;
 
 
 void init(){
@@ -364,9 +368,13 @@ int main(){
                 p[index].fixed = true;
                 break;
             case 1:
+                if(input > max_x)
+                    max_x = input;
                 fp[num_of_fixed].x_loc = input;
                 break;
             case 2:
+                if(input > max_y)
+                    max_y = input;
                 fp[num_of_fixed].y_loc = input;
                 break;
             default:
@@ -402,17 +410,17 @@ int main(){
     //     }
     // }
     //print fixed items
-    // for(int i = 0; i < num_of_fixed; i++){
-    //     cout << fp[i].pin_number << " " << fp[i].x_loc << " " << fp[i].y_loc << endl;
-    // }
+    for(int i = 0; i < num_of_fixed; i++){
+        cout << fp[i].pin_number << " " << fp[i].x_loc << " " << fp[i].y_loc << endl;
+    }
     
     make_clique();
     double* x_vec = solve(0);
     double* y_vec = solve(1);
     /************************************************************Debug*****************************************************************/
-    // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
-    //     cout << x_vec[i] << " " << y_vec[i] << endl; 
-    // }
+    for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
+        cout << x_vec[i] << " " << y_vec[i] << endl; 
+    }
     int cnt = 0;
     for(int i = 0; i < num_of_blocks; i++){
         if(p[i].fixed)
@@ -428,5 +436,58 @@ int main(){
     double HPWL = cal_HPWL();
     cout << "HPWL: " << HPWL << endl;
 
+    init_graphics("Assignment 2 - Part1", WHITE);
+    init_world (0.,0.,5000.,5000.);
+    update_message("Fatemehsadat(Sara) Mahmoudi - Placement");
+    event_loop(act_on_button_press, NULL, NULL, drawscreen); 
     return 0;
+}
+
+
+void drawscreen (void) {
+    set_draw_mode (DRAW_NORMAL);
+    clearscreen(); 
+    setfontsize (10);
+    setlinestyle (SOLID);
+    setlinewidth (2);
+    setcolor (BLACK);
+
+    //DRAW GRID
+    setcolor(CYAN);
+    float left_corner_x = 300;
+    float left_corner_y = 2000;
+    float len = 300;
+    for(int i = 0; i < max_x; i++){
+        for(int j = 0; j < max_y; j++){        
+            drawrect (left_corner_x + j*len, left_corner_y + i*len, left_corner_x + j*len + len, left_corner_y + i*len - len); 
+        }
+    }
+
+    //DRAW FIXED ELEMENTS
+    setcolor(MAGENTA);
+    for(int i = 0; i < num_of_fixed; i++){
+        float x_margin = fp[i].x_loc;
+        float y_margin = fp[i].y_loc;
+        fillarc(left_corner_x + x_margin*len , left_corner_y + (max_y-1-y_margin)*len ,len/15,0,360);
+    }
+    
+    //DRAW OTHER ELEMENTS
+    setcolor(BLUE);
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed)
+            continue;    
+        float x_bin = floor(p[i].x_loc);
+        float y_bin = floor(p[i].y_loc);
+        float x_margin = p[i].x_loc - x_bin;
+        float y_margin = p[i].y_loc - y_bin;
+        fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-1-y_bin)*len + y_margin*len ,len/20,0,360);
+    }
+
+    //DRAW NETS
+    setcolor(BLACK);
+}
+
+
+void act_on_button_press (float x, float y) {
+    printf("User clicked a button at coordinates (%f, %f)\n", x, y);
 }
