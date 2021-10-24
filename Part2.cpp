@@ -7,6 +7,7 @@
 #include <math.h>
 #include <bits/stdc++.h>
 #include "umfpack.h"
+#include "graphics.h"
 
 using namespace std;
 
@@ -14,6 +15,9 @@ using namespace std;
 #define number_of_nets 510
 #define max_connection 100
 #define max_fanout 20
+
+void drawscreen (void);
+void act_on_button_press (float x, float y);
 
 struct Bin{
     int x;
@@ -691,38 +695,38 @@ void spread(){
                                 int pid = find_pin(cost_revised.second);
                                 int b_src_id = find_bin(b_src.x,b_src.y);
                                 int b_sink_id = find_bin(b_sink.x,b_sink.y);
-                                cout << "=====================BMOVE==============" << endl;
-                                cout << "moving cell " << p[pid].pin_number <<" " << cost_revised.second << endl;
-                                cout << "source: " << b_src.x << " " << b_src.y << endl; 
-                                cout << "source block count: " << b[b_src_id].block_count << endl;
-                                for(int i = 0; i < b[b_src_id].block_count; i++){
-                                    cout << b[b_src_id].blocks[i] << " ";
-                                }
-                                cout << endl;
-                                cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
-                                cout << "sink block count: " << b[b_sink_id].block_count << endl;
-                                for(int j =0 ;j < b[b_sink_id].block_count;j++){
-                                    cout << b[b_sink_id].blocks[j] << " ";
-                                }
-                                cout << endl;
+                                // cout << "=====================BMOVE==============" << endl;
+                                // cout << "moving cell " << p[pid].pin_number <<" " << cost_revised.second << endl;
+                                // cout << "source: " << b_src.x << " " << b_src.y << endl; 
+                                // cout << "source block count: " << b[b_src_id].block_count << endl;
+                                // for(int i = 0; i < b[b_src_id].block_count; i++){
+                                //     cout << b[b_src_id].blocks[i] << " ";
+                                // }
+                                // cout << endl;
+                                // cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
+                                // cout << "sink block count: " << b[b_sink_id].block_count << endl;
+                                // for(int j =0 ;j < b[b_sink_id].block_count;j++){
+                                //     cout << b[b_sink_id].blocks[j] << " ";
+                                // }
+                                // cout << endl;
                                 remove_cell_from_bin(p[pid].pin_number,b_src_id);
                                 b[b_sink_id].blocks[b[b_sink_id].block_count] = p[pid].pin_number;
                                 b[b_sink_id].block_count++;
                                 /************************************************************Debug*****************************************************************/     
-                                cout << "=====================MOVE==============" << endl;
-                                cout << "moving cell " << p[pid].pin_number << endl;
-                                cout << "source: " << b_src.x << " " << b_src.y << endl; 
-                                cout << "source block count: " << b[b_src_id].block_count << endl;
-                                for(int i = 0; i < b[b_src_id].block_count; i++){
-                                    cout << b[b_src_id].blocks[i] << " ";
-                                }
-                                cout << endl;
-                                cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
-                                cout << "sink block count: " << b[b_sink_id].block_count << endl;
-                                for(int j =0 ;j < b[b_sink_id].block_count;j++){
-                                    cout << b[b_sink_id].blocks[j] << " ";
-                                }
-                                cout << endl;
+                                // cout << "=====================MOVE==============" << endl;
+                                // cout << "moving cell " << p[pid].pin_number << endl;
+                                // cout << "source: " << b_src.x << " " << b_src.y << endl; 
+                                // cout << "source block count: " << b[b_src_id].block_count << endl;
+                                // for(int i = 0; i < b[b_src_id].block_count; i++){
+                                //     cout << b[b_src_id].blocks[i] << " ";
+                                // }
+                                // cout << endl;
+                                // cout << "sink: " << b_sink.x << " " << b_sink.y << endl;
+                                // cout << "sink block count: " << b[b_sink_id].block_count << endl;
+                                // for(int j =0 ;j < b[b_sink_id].block_count;j++){
+                                //     cout << b[b_sink_id].blocks[j] << " ";
+                                // }
+                                // cout << endl;
                                 if(b_src.x == b_sink.x){
                                     if(b_sink.y > b_src.y){ //right
                                         p[pid].moved_y_loc++;
@@ -936,7 +940,7 @@ int main(){
             cout << "==============================================" << endl;
             cout << b[i].x << " " << b[i].y << endl;
             for(int j = 0; j < b[i].block_count; j++){
-                cout << b[i].blocks[j] << endl;
+                cout << "pin number " << b[i].blocks[j] << endl;
                 int pid_number_temp = find_pin(b[i].blocks[j]);
                 int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
                 if(p[pid_number_temp].fixed){
@@ -964,5 +968,58 @@ int main(){
     delete[] x_vec1;
     delete[] y_vec1;
 
+    init_graphics("Assignment 2 - Part2", WHITE);
+    init_world (0.,0.,5000.,5000.);
+    update_message("Fatemehsadat(Sara) Mahmoudi - Placement");
+    event_loop(act_on_button_press, NULL, NULL, drawscreen); 
+
     return 0;
+}
+
+void drawscreen (void) {
+    set_draw_mode (DRAW_NORMAL);
+    clearscreen(); 
+    setfontsize (10);
+    setlinestyle (SOLID);
+    setlinewidth (2);
+    setcolor (BLACK);
+
+    //DRAW GRID
+    setcolor(CYAN);
+    float left_corner_x = 300;
+    float left_corner_y = 2000;
+    float len = 300;
+    for(int i = 0; i < max_x; i++){
+        for(int j = 0; j < max_y; j++){        
+            drawrect (left_corner_x + j*len, left_corner_y + i*len, left_corner_x + j*len + len, left_corner_y + i*len - len); 
+        }
+    }
+
+    //DRAW FIXED ELEMENTS
+    setcolor(MAGENTA);
+    for(int i = 0; i < num_of_fixed; i++){
+        float x_margin = fp[i].x_loc;
+        float y_margin = fp[i].y_loc;
+        fillarc(left_corner_x + x_margin*len , left_corner_y + (max_y-1-y_margin)*len ,len/15,0,360);
+    }
+    
+    //DRAW OTHER ELEMENTS
+    setcolor(BLUE);
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed)
+            continue;    
+        float x_bin = floor(p[i].moved_x_loc);
+        float y_bin = floor(p[i].moved_y_loc);
+        float x_margin = p[i].moved_x_loc - x_bin;
+        float y_margin = p[i].moved_y_loc - y_bin;
+        fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-2-y_bin)*len + y_margin*len ,len/20,0,360);
+    }
+
+    //DRAW NETS
+    setcolor(BLACK);
+}
+
+
+void act_on_button_press (float x, float y) {
+    printf("User clicked a button at coordinates (%f, %f)\n", x, y);
 }
