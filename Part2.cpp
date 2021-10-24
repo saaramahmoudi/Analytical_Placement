@@ -933,25 +933,25 @@ int main(){
     create_bin();
     spread();
     /************************************************************Debug*****************************************************************/
-    for(int i = 0; i < num_of_bins; i++){
-        if(b[i].block_count == 0)
-            continue;
-        else{
-            cout << "==============================================" << endl;
-            cout << b[i].x << " " << b[i].y << endl;
-            for(int j = 0; j < b[i].block_count; j++){
-                cout << "pin number " << b[i].blocks[j] << endl;
-                int pid_number_temp = find_pin(b[i].blocks[j]);
-                int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
-                if(p[pid_number_temp].fixed){
-                    cout << fp[pid_fixed_temp].x_loc << " " << fp[pid_fixed_temp].y_loc << endl;
-                }
-                else{
-                    cout << p[pid_number_temp].moved_x_loc << " " << p[pid_number_temp].moved_y_loc << endl;
-                }
-            }
-        }
-    }
+    // for(int i = 0; i < num_of_bins; i++){
+    //     if(b[i].block_count == 0)
+    //         continue;
+    //     else{
+    //         cout << "==============================================" << endl;
+    //         cout << b[i].x << " " << b[i].y << endl;
+    //         for(int j = 0; j < b[i].block_count; j++){
+    //             cout << "pin number " << b[i].blocks[j] << endl;
+    //             int pid_number_temp = find_pin(b[i].blocks[j]);
+    //             int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
+    //             if(p[pid_number_temp].fixed){
+    //                 cout << fp[pid_fixed_temp].x_loc << " " << fp[pid_fixed_temp].y_loc << endl;
+    //             }
+    //             else{
+    //                 cout << p[pid_number_temp].moved_x_loc << " " << p[pid_number_temp].moved_y_loc << endl;
+    //             }
+    //         }
+    //     }
+    // }
 
     double displacement_value = cal_displacement();
     cout << "Displacement Value: " << displacement_value << endl; 
