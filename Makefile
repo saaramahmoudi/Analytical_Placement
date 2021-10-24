@@ -1,39 +1,24 @@
-#-------------------------------------------------------------------------------
-# compile the UMFPACK demos
-#-------------------------------------------------------------------------------
-include ../SuiteSparse-5.10.1/SuiteSparse_config/SuiteSparse_config.mk
-
-#-------------------------------------------------------------------------------
-# UMFPACK optionally uses the CHOLMOD Partition module
 LIB_WITH_CHOLMOD =
 ifeq (,$(findstring -DNCHOLMOD, $(UMFPACK_CONFIG)))
     LIB_WITH_CHOLMOD = $(LIB_WITH_PARTITION) $(CUBLAS_LIB) $(CUDART_LIB)
 endif
-
-#-------------------------------------------------------------------------------
 LIBS = -lm -lrt -Wl,-rpath=../SuiteSparse-5.10.1/lib -L../SuiteSparse-5.10.1/lib -L../SuiteSparse-5.10.1/UMFPACK/Lib -lumfpack -lamd -lsuitesparseconfig $(LIB_WITH_CHOLMOD) $(LAPACK)
 
-libs: metis
-	( cd ../SuiteSparse-5.10.1/SuiteSparse_config ; $(MAKE) )
-	( cd ../SuiteSparse-5.10.1/AMD ; $(MAKE) library )
-	( cd ../SuiteSparse-5.10.1/UMFPACK/Lib ; $(MAKE) )
-	- ( cd ../SuiteSparse-5.10.1/CHOLMOD && $(MAKE) library )
-	- ( cd ../SuiteSparse-5.10.1/COLAMD && $(MAKE) library )
-	- ( cd ../SuiteSparse-5.10.1/CCOLAMD ; $(MAKE) library )
-	- ( cd ../SuiteSparse-5.10.1/CAMD ; $(MAKE) library )
+PLATFORM = X11
+HDR = graphics.h easygl_constants.h
+ifeq ($(PLATFORM),X11)
+   GRAPHICS_LIBS = -lX11
+endif
 
-metis: ../SuiteSparse-5.10.1/include/metis.h
+FLAGS = -g -Wall -D$(PLATFORM) -I../SuiteSparse-5.10.1/UMFPACK/Include -I../SuiteSparse-5.10.1/include 
 
-../SuiteSparse-5.10.1/include/metis.h:
-	- ( cd  && $(MAKE) metis )
+Part1: Part1.cpp $(HDR)
+	g++ -std=c++11 Part1.cpp -c $(FLAGS) 
+	g++ -c -g -Wall -D$(PLATFORM) graphics.cpp
+	g++ -g -Wall -D$(PLATFORM) graphics.o Part1.o $(GRAPHICS_LIBS) -o Part1_exe.o $(LIBS) 
 
-#-------------------------------------------------------------------------------
-# COMPILATION
-#-------------------------------------------------------------------------------
-
-Part1: Part1.cpp
-	g++ -std=c++11 -I../SuiteSparse-5.10.1/UMFPACK/Include -I../SuiteSparse-5.10.1/include  Part1.cpp $(LIBS) -o Part1.o
-
-Part2: Part2.cpp
-	g++ -std=c++11 -I../SuiteSparse-5.10.1/UMFPACK/Include -I../SuiteSparse-5.10.1/include  Part2.cpp $(LIBS) -o Part2.o
+Part2: Part2.cpp $(HDR)
+	g++ -std=c++11 Part2.cpp -c $(FLAGS) 
+	g++ -c -g -Wall -D$(PLATFORM) graphics.cpp
+	g++ -g -Wall -D$(PLATFORM) graphics.o Part2.o $(GRAPHICS_LIBS) -o Part2_exe.o $(LIBS) 
 
