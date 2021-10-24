@@ -19,6 +19,7 @@ using namespace std;
 void drawscreen (void);
 void act_on_button_press (float x, float y);
 void act_on_net_button_function (void (*drawscreen_ptr) (void));
+void act_on_one_net_button_function (void (*drawscreen_ptr) (void));
 
 struct Fixed_pin{
     int pin_number;
@@ -47,11 +48,14 @@ struct Net{
 Fixed_pin* fp;
 Pin* p;
 Net* n;
+Net* n_draw;
+int n_draw_len = 0;
 int num_of_blocks = 0;
 int num_of_fixed = 0;
 int max_x = -1;
 int max_y = -1;
-int clicked = 0;
+int nets_clicked = 0;
+int one_net_clicked = -1;
 
 
 void init(){
@@ -315,6 +319,20 @@ double cal_HPWL(){
     return HPWL;
 }
 
+void create_nets_for_drawing(){
+    for(int i = 0; i < number_of_nets; i++){
+        if(n[i].connected_block_len != 0)
+            n_draw_len++;
+    }
+    n_draw = new Net[n_draw_len];
+    int cnt =0;
+    for(int i = 0; i < number_of_nets; i++){
+        if(n[i].connected_block_len != 0){
+            n_draw[cnt] = n[i];
+            cnt++;
+        }
+    }
+}
 
 int main(){
     string fileName;
@@ -437,11 +455,12 @@ int main(){
     delete[] y_vec;
     double HPWL = cal_HPWL();
     cout << "HPWL: " << HPWL << endl;
-
+    create_nets_for_drawing();
     init_graphics("Assignment 2 - Part1", WHITE);
     init_world (0.,0.,5000.,5000.);
     update_message("Fatemehsadat(Sara) Mahmoudi - Placement");
     create_button ("Proceed", "NETS", act_on_net_button_function);
+    create_button ("NETS", "1 NET", act_on_one_net_button_function);
     event_loop(act_on_button_press, NULL, NULL, drawscreen); 
     return 0;
 }
@@ -525,7 +544,24 @@ void draw_nets(){
         }
     }
 }
-
+void draw_one_net(){
+    if(n_draw[one_net_clicked].connected_block_len == 2){
+        setcolor(LIGHTGREY);
+        int pid1 = find_pin(n_draw[one_net_clicked].connected_block[0]);
+        int pid2 = find_pin(n_draw[one_net_clicked].connected_block[1]); 
+        connect_two_pin(pid1,pid2);
+    }
+    else{//clique model
+        setcolor(YELLOW);
+        for(int j = 0; j < n_draw[one_net_clicked].connected_block_len; j++){
+            for(int k = j+1; k < n_draw[one_net_clicked].connected_block_len; k++){
+                int pid1 = find_pin(n_draw[one_net_clicked].connected_block[j]);
+                int pid2 = find_pin(n_draw[one_net_clicked].connected_block[k]);
+                connect_two_pin(pid1,pid2);
+            }
+        }
+    }
+}
 
 void drawscreen (void) {
     set_draw_mode (DRAW_NORMAL);
@@ -567,23 +603,37 @@ void drawscreen (void) {
     }
 
     //DRAW NETS
-    if(clicked % 2 == 1){
+    if(nets_clicked % 2 == 1){
         draw_nets(); 
+    }
+    if(one_net_clicked != n_draw_len && one_net_clicked != -1){
+        draw_one_net();
     }
 }
 
 
 void act_on_button_press (float x, float y) {
-    printf("User clicked a button at coordinates (%f, %f)\n", x, y);
+    printf("User nets_clicked a button at coordinates (%f, %f)\n", x, y);
 }
 
 void act_on_net_button_function (void (*drawscreen_ptr) (void)) {
     //DRAW NETS
-    clicked++;
-    if(clicked % 2 == 1){
+    nets_clicked++;
+    if(nets_clicked % 2 == 1){
         draw_nets();
     }
     else{
         drawscreen();
     }
+}
+void act_on_one_net_button_function (void (*drawscreen_ptr) (void)){
+    one_net_clicked++;
+    if(one_net_clicked == n_draw_len){
+        one_net_clicked = 0;
+        drawscreen();
+    }
+    else{
+        drawscreen();   
+        draw_one_net();
+    }        
 }
