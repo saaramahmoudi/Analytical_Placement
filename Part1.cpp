@@ -418,9 +418,9 @@ int main(){
     double* x_vec = solve(0);
     double* y_vec = solve(1);
     /************************************************************Debug*****************************************************************/
-    for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
-        cout << x_vec[i] << " " << y_vec[i] << endl; 
-    }
+    // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
+    //     cout << x_vec[i] << " " << y_vec[i] << endl; 
+    // }
     int cnt = 0;
     for(int i = 0; i < num_of_blocks; i++){
         if(p[i].fixed)
@@ -480,7 +480,7 @@ void drawscreen (void) {
         float y_bin = floor(p[i].y_loc);
         float x_margin = p[i].x_loc - x_bin;
         float y_margin = p[i].y_loc - y_bin;
-        fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-1-y_bin)*len + y_margin*len ,len/20,0,360);
+        fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-2-y_bin)*len + y_margin*len ,len/20,0,360);
     }
 
     //DRAW NETS
