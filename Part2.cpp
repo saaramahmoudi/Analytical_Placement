@@ -18,6 +18,7 @@ using namespace std;
 
 void drawscreen (void);
 void act_on_button_press (float x, float y);
+void act_on_net_button_function (void (*drawscreen_ptr) (void));
 
 struct Bin{
     int x;
@@ -64,7 +65,7 @@ int num_of_bins = 0;
 int overfilled_bins_num =0;
 int max_x = -1;
 int max_y = -1;
-
+int clicked = 0;
 
 void init(){
     p = new Pin[number_of_pins];
@@ -971,8 +972,8 @@ int main(){
     init_graphics("Assignment 2 - Part2", WHITE);
     init_world (0.,0.,5000.,5000.);
     update_message("Fatemehsadat(Sara) Mahmoudi - Placement");
+    create_button ("Proceed", "NETS", act_on_net_button_function);
     event_loop(act_on_button_press, NULL, NULL, drawscreen); 
-
     return 0;
 }
 
@@ -1032,6 +1033,30 @@ void connect_two_pin(int pid1, int pid2){
     }
 }
 
+void draw_nets(){
+    for(int i = 0; i < number_of_nets; i++){
+        if(n[i].connected_block_len == 0){
+            continue;
+        }
+        if(n[i].connected_block_len == 2){
+            setcolor(LIGHTGREY);
+            int pid1 = find_pin(n[i].connected_block[0]);
+            int pid2 = find_pin(n[i].connected_block[1]); 
+            connect_two_pin(pid1,pid2);
+        }
+        else{//clique model
+            setcolor(YELLOW);
+            for(int j = 0; j < n[i].connected_block_len; j++){
+                for(int k = j+1; k < n[i].connected_block_len; k++){
+                    int pid1 = find_pin(n[i].connected_block[j]);
+                    int pid2 = find_pin(n[i].connected_block[k]);
+                    connect_two_pin(pid1,pid2);
+                }
+            }
+        }
+    }
+}
+
 void drawscreen (void) {
     set_draw_mode (DRAW_NORMAL);
     clearscreen(); 
@@ -1070,32 +1095,23 @@ void drawscreen (void) {
         float y_margin = p[i].moved_y_loc - y_bin;
         fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-2-y_bin)*len + y_margin*len ,len/20,0,360);
     }
-
-    //DRAW NETS
-    for(int i = 0; i < number_of_nets; i++){
-        if(n[i].connected_block_len == 0){
-            continue;
-        }
-        if(n[i].connected_block_len == 2){
-            setcolor(LIGHTGREY);
-            int pid1 = find_pin(n[i].connected_block[0]);
-            int pid2 = find_pin(n[i].connected_block[1]); 
-            connect_two_pin(pid1,pid2);
-        }
-        else{//clique model
-            setcolor(YELLOW);
-            for(int j = 0; j < n[i].connected_block_len; j++){
-                for(int k = j+1; k < n[i].connected_block_len; k++){
-                    int pid1 = find_pin(n[i].connected_block[j]);
-                    int pid2 = find_pin(n[i].connected_block[k]);
-                    connect_two_pin(pid1,pid2);
-                }
-            }
-        }
+    if(clicked % 2 == 1){
+        draw_nets(); 
     }
 }
 
 
 void act_on_button_press (float x, float y) {
     printf("User clicked a button at coordinates (%f, %f)\n", x, y);
+}
+
+void act_on_net_button_function (void (*drawscreen_ptr) (void)) {
+    //DRAW NETS
+    clicked++;
+    if(clicked % 2 == 1){
+        draw_nets();
+    }
+    else{
+        drawscreen();
+    }
 }
