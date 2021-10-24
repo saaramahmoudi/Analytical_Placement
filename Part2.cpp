@@ -911,11 +911,11 @@ int main(){
     // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
     //     cout << x_vec[i] << " " << y_vec[i] << endl; 
     // }
-    
     int cnt = 0;
     for(int i = 0; i < num_of_blocks; i++){
-        if(p[i].fixed)
+        if(p[i].fixed){
             continue;
+        }
         else{
             p[i].x_loc = x_vec[cnt];
             p[i].y_loc = y_vec[cnt];
@@ -923,8 +923,8 @@ int main(){
             p[i].moved_y_loc = y_vec[cnt];
             cnt++;
         }
+
     }
-    
     //free allocated spaces
     delete[] x_vec;
     delete[] y_vec;
@@ -976,6 +976,62 @@ int main(){
     return 0;
 }
 
+void connect_two_pin(int pid1, int pid2){
+    float left_corner_x = 300;
+    float left_corner_y = 2000;
+    float len = 300;
+    float x_bin1,y_bin1,x_margin1,y_margin1;
+    float x_bin2,y_bin2,x_margin2,y_margin2; 
+    float p1_x, p1_y, p2_x, p2_y;
+    if(!p[pid1].fixed){
+        p1_x = p[pid1].moved_x_loc;
+        p1_y = p[pid1].moved_y_loc;
+        x_bin1 = floor(p[pid1].moved_x_loc);
+        y_bin1 = floor(p[pid1].moved_y_loc);
+        x_margin1 = p[pid1].moved_x_loc - x_bin1;
+        y_margin1 = p[pid1].moved_y_loc - y_bin1;
+    }
+    else{
+        int fp1 = find_fixed_pin(p[pid1].pin_number);
+        p1_x = fp[fp1].x_loc;
+        p1_y = fp[fp1].y_loc - 1;
+        x_bin1 = fp[fp1].x_loc;
+        y_bin1 = fp[fp1].y_loc -1 ;
+        x_margin1 = 0;
+        y_margin1 = 0; 
+    }
+    if(!p[pid2].fixed){
+        p2_x = p[pid2].moved_x_loc;
+        p2_y = p[pid2].moved_y_loc;
+        x_bin2 = floor(p[pid2].moved_x_loc);
+        y_bin2 = floor(p[pid2].moved_y_loc);
+        x_margin2 = p[pid2].moved_x_loc - x_bin2;
+        y_margin2 = p[pid2].moved_y_loc - y_bin2;
+    }
+    else{
+        int fp2 = find_fixed_pin(p[pid2].pin_number);
+        p2_x = fp[fp2].x_loc;
+        p2_y = fp[fp2].y_loc - 1;
+        x_bin2 = fp[fp2].x_loc;
+        y_bin2 = fp[fp2].y_loc - 1;
+        x_margin2 = 0;
+        y_margin2 = 0; 
+    }
+    //locate their positions
+    if(p1_x < p2_x && abs(p1_y - p2_y) > 0.5 * len){ //right
+        drawline(left_corner_x + x_bin1*len + len*x_margin1 + len/20, left_corner_y + (max_y-2-y_bin1)*len + y_margin1*len,left_corner_x + x_bin2*len + len*x_margin2 -len/20 , left_corner_y + (max_y-2-y_bin2)*len +y_margin2*len);
+    }
+    else if(p1_x > p2_x && abs(p1_y - p2_y) > 0.5 * len){//left
+        drawline(left_corner_x + x_bin1*len + len*x_margin1 - len/20, left_corner_y + (max_y-2-y_bin1)*len + y_margin1*len,left_corner_x + x_bin2*len + len*x_margin2 +len/20 , left_corner_y + (max_y-2-y_bin2)*len +y_margin2*len);
+    }
+    else if(p1_y < p2_y){//up
+        drawline(left_corner_x + x_bin1*len + len*x_margin1 , left_corner_y + (max_y-2-y_bin1)*len + y_margin1*len - len/20,left_corner_x + x_bin2*len + len*x_margin2  , left_corner_y + (max_y-2-y_bin2)*len + + y_margin2*len +len/20);
+    }
+    else{
+        drawline(left_corner_x + x_bin1*len + len*x_margin1 , left_corner_y + (max_y-2-y_bin1)*len + y_margin1*len + len/20,left_corner_x + x_bin2*len + len*x_margin2  , left_corner_y + (max_y-2-y_bin2)*len + + y_margin2*len -len/20);
+    }
+}
+
 void drawscreen (void) {
     set_draw_mode (DRAW_NORMAL);
     clearscreen(); 
@@ -1004,7 +1060,7 @@ void drawscreen (void) {
     }
     
     //DRAW OTHER ELEMENTS
-    setcolor(BLUE);
+    setcolor(BLACK);
     for(int i = 0; i < num_of_blocks; i++){
         if(p[i].fixed)
             continue;    
@@ -1016,7 +1072,27 @@ void drawscreen (void) {
     }
 
     //DRAW NETS
-    setcolor(BLACK);
+    for(int i = 0; i < number_of_nets; i++){
+        if(n[i].connected_block_len == 0){
+            continue;
+        }
+        if(n[i].connected_block_len == 2){
+            setcolor(LIGHTGREY);
+            int pid1 = find_pin(n[i].connected_block[0]);
+            int pid2 = find_pin(n[i].connected_block[1]); 
+            connect_two_pin(pid1,pid2);
+        }
+        else{//clique model
+            setcolor(YELLOW);
+            for(int j = 0; j < n[i].connected_block_len; j++){
+                for(int k = j+1; k < n[i].connected_block_len; k++){
+                    int pid1 = find_pin(n[i].connected_block[j]);
+                    int pid2 = find_pin(n[i].connected_block[k]);
+                    connect_two_pin(pid1,pid2);
+                }
+            }
+        }
+    }
 }
 
 
