@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <math.h>
 #include <bits/stdc++.h>
+#include<string>  
 #include "umfpack.h"
 #include "graphics.h"
 
@@ -20,6 +21,9 @@ void drawscreen (void);
 void act_on_button_press (float x, float y);
 void act_on_net_button_function (void (*drawscreen_ptr) (void));
 void act_on_one_net_button_function (void (*drawscreen_ptr) (void));
+void act_on_spread_button_function (void (*drawscreen_ptr) (void));
+void act_on_solve_button_function (void (*drawscreen_ptr) (void));
+void act_on_anchor_button_function (void (*drawscreen_ptr) (void));
 
 struct Bin{
     int x;
@@ -60,6 +64,7 @@ Pin* p;
 Net* n;
 Bin* b;
 Bin* overfilled_b;
+Pin* anchor_p;
 Net* n_draw;
 int n_draw_len = 0;
 int num_of_blocks = 0;
@@ -70,9 +75,13 @@ int max_x = -1;
 int max_y = -1;
 int nets_clicked = 0;
 int one_net_clicked = -1;
+int spread_clicked = 0;
+int solve_clicked = 0;
+int anchor_clicked = 0;
 
 void init(){
     p = new Pin[number_of_pins];
+    anchor_p = new Pin[number_of_pins];
     fp = new Fixed_pin[number_of_pins];
     n = new Net[number_of_nets];
     for(int i = 0; i < number_of_pins; i++){
@@ -352,7 +361,7 @@ void create_bin(){
 }
 
 bool compare_two_bins(Bin b1, Bin b2){
-    return b1.block_count > b2.block_count;
+    return b1.block_count < b2.block_count;
 }
 
 Bin* sort_overfilled_bins(){
@@ -873,6 +882,7 @@ int main(){
             end_of_netlist = false;
             if(counter == 0){//new row
                 p[num_of_blocks].pin_number= input;
+                anchor_p[num_of_blocks].pin_number = input;
                 p[num_of_blocks].connection_number = 0;
                 p[num_of_blocks].connection = new int[max_connection];
                 p[num_of_blocks].fixed = false;
@@ -952,46 +962,35 @@ int main(){
     cout << "HPWL: " << HPWL_before_spread << endl;
     create_bin();
     spread();
-    /************************************************************Debug*****************************************************************/
-    // for(int i = 0; i < num_of_bins; i++){
-    //     if(b[i].block_count == 0)
-    //         continue;
-    //     else{
-    //         cout << "==============================================" << endl;
-    //         cout << b[i].x << " " << b[i].y << endl;
-    //         for(int j = 0; j < b[i].block_count; j++){
-    //             cout << "pin number " << b[i].blocks[j] << endl;
-    //             int pid_number_temp = find_pin(b[i].blocks[j]);
-    //             int pid_fixed_temp = find_fixed_pin(b[i].blocks[j]);
-    //             if(p[pid_number_temp].fixed){
-    //                 cout << fp[pid_fixed_temp].x_loc << " " << fp[pid_fixed_temp].y_loc << endl;
-    //             }
-    //             else{
-    //                 cout << p[pid_number_temp].moved_x_loc << " " << p[pid_number_temp].moved_y_loc << endl;
-    //             }
-    //         }
-    //     }
-    // }
-
+    double HPWL_after_spread = cal_HPWL();
+    cout << "HPWL AFTER: " << HPWL_after_spread << endl;
     double displacement_value = cal_displacement();
     cout << "Displacement Value: " << displacement_value << endl; 
     double anchor_weight = 1;
     double** anchor_weight_mat = add_anchor(weight_mat,anchor_weight);
     double* x_vec1 = solve(0,anchor_weight_mat);
     double* y_vec1 = solve(1,anchor_weight_mat);  
-    /************************************************************Debug*****************************************************************/
-    // cout << "solved again" << endl;
-    // for(int i = 0 ; i < num_of_blocks - num_of_fixed; i++){
-    //     cout << x_vec1[i] << " " << y_vec1[i] << endl; 
-    // }
-    
+    cnt = 0;
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed){
+            continue;
+        }
+        else{
+            anchor_p[i].x_loc = x_vec1[cnt];
+            anchor_p[i].y_loc = y_vec1[cnt];
+            cnt++;
+        }
+    }
     delete[] x_vec1;
     delete[] y_vec1;
     create_nets_for_drawing();
     init_graphics("Assignment 2 - Part2", WHITE);
     init_world (0.,0.,5000.,5000.);
     update_message("Fatemehsadat(Sara) Mahmoudi - Placement");
-    create_button ("Proceed", "NETS", act_on_net_button_function);
+    create_button ("Proceed", "Solve", act_on_solve_button_function);
+    create_button ("Solve", "Spread", act_on_spread_button_function);
+    create_button ("Spread", "Anchor", act_on_anchor_button_function);
+    create_button ("Anchor", "NETS", act_on_net_button_function);
     create_button ("NETS", "1 NET", act_on_one_net_button_function);
     event_loop(act_on_button_press, NULL, NULL, drawscreen); 
     return 0;
@@ -1004,39 +1003,113 @@ void connect_two_pin(int pid1, int pid2){
     float x_bin1,y_bin1,x_margin1,y_margin1;
     float x_bin2,y_bin2,x_margin2,y_margin2; 
     float p1_x, p1_y, p2_x, p2_y;
-    if(!p[pid1].fixed){
-        p1_x = p[pid1].moved_x_loc;
-        p1_y = p[pid1].moved_y_loc;
-        x_bin1 = floor(p[pid1].moved_x_loc);
-        y_bin1 = floor(p[pid1].moved_y_loc);
-        x_margin1 = p[pid1].moved_x_loc - x_bin1;
-        y_margin1 = p[pid1].moved_y_loc - y_bin1;
+    if(solve_clicked!= 0){
+        if(!p[pid1].fixed){
+            p1_x = p[pid1].x_loc;
+            p1_y = p[pid1].y_loc;
+            x_bin1 = floor(p[pid1].x_loc);
+            y_bin1 = floor(p[pid1].y_loc);
+            x_margin1 = p[pid1].x_loc - x_bin1;
+            y_margin1 = p[pid1].y_loc - y_bin1;
+        }
+        else{
+            int fp1 = find_fixed_pin(p[pid1].pin_number);
+            p1_x = fp[fp1].x_loc;
+            p1_y = fp[fp1].y_loc - 1;
+            x_bin1 = fp[fp1].x_loc;
+            y_bin1 = fp[fp1].y_loc -1 ;
+            x_margin1 = 0;
+            y_margin1 = 0; 
+            }
+            if(!p[pid2].fixed){
+                p2_x = p[pid2].x_loc;
+                p2_y = p[pid2].y_loc;
+                x_bin2 = floor(p[pid2].x_loc);
+                y_bin2 = floor(p[pid2].y_loc);
+                x_margin2 = p[pid2].x_loc - x_bin2;
+                y_margin2 = p[pid2].y_loc - y_bin2;
+            }
+            else{
+                int fp2 = find_fixed_pin(p[pid2].pin_number);
+                p2_x = fp[fp2].x_loc;
+                p2_y = fp[fp2].y_loc - 1;
+                x_bin2 = fp[fp2].x_loc;
+                y_bin2 = fp[fp2].y_loc - 1;
+                x_margin2 = 0;
+                y_margin2 = 0; 
+            }
     }
-    else{
-        int fp1 = find_fixed_pin(p[pid1].pin_number);
-        p1_x = fp[fp1].x_loc;
-        p1_y = fp[fp1].y_loc - 1;
-        x_bin1 = fp[fp1].x_loc;
-        y_bin1 = fp[fp1].y_loc -1 ;
-        x_margin1 = 0;
-        y_margin1 = 0; 
+    else if (spread_clicked != 0){
+        if(!p[pid1].fixed){
+            p1_x = p[pid1].moved_x_loc;
+            p1_y = p[pid1].moved_y_loc;
+            x_bin1 = floor(p[pid1].moved_x_loc);
+            y_bin1 = floor(p[pid1].moved_y_loc);
+            x_margin1 = p[pid1].moved_x_loc - x_bin1;
+            y_margin1 = p[pid1].moved_y_loc - y_bin1;
+        }
+        else{
+            int fp1 = find_fixed_pin(p[pid1].pin_number);
+            p1_x = fp[fp1].x_loc;
+            p1_y = fp[fp1].y_loc - 1;
+            x_bin1 = fp[fp1].x_loc;
+            y_bin1 = fp[fp1].y_loc -1 ;
+            x_margin1 = 0;
+            y_margin1 = 0; 
+            }
+            if(!p[pid2].fixed){
+                p2_x = p[pid2].moved_x_loc;
+                p2_y = p[pid2].moved_y_loc;
+                x_bin2 = floor(p[pid2].moved_x_loc);
+                y_bin2 = floor(p[pid2].moved_y_loc);
+                x_margin2 = p[pid2].moved_x_loc - x_bin2;
+                y_margin2 = p[pid2].moved_y_loc - y_bin2;
+            }
+            else{
+                int fp2 = find_fixed_pin(p[pid2].pin_number);
+                p2_x = fp[fp2].x_loc;
+                p2_y = fp[fp2].y_loc - 1;
+                x_bin2 = fp[fp2].x_loc;
+                y_bin2 = fp[fp2].y_loc - 1;
+                x_margin2 = 0;
+                y_margin2 = 0; 
+            }
     }
-    if(!p[pid2].fixed){
-        p2_x = p[pid2].moved_x_loc;
-        p2_y = p[pid2].moved_y_loc;
-        x_bin2 = floor(p[pid2].moved_x_loc);
-        y_bin2 = floor(p[pid2].moved_y_loc);
-        x_margin2 = p[pid2].moved_x_loc - x_bin2;
-        y_margin2 = p[pid2].moved_y_loc - y_bin2;
-    }
-    else{
-        int fp2 = find_fixed_pin(p[pid2].pin_number);
-        p2_x = fp[fp2].x_loc;
-        p2_y = fp[fp2].y_loc - 1;
-        x_bin2 = fp[fp2].x_loc;
-        y_bin2 = fp[fp2].y_loc - 1;
-        x_margin2 = 0;
-        y_margin2 = 0; 
+    else if (anchor_clicked != 0){
+        if(!p[pid1].fixed){
+            p1_x = anchor_p[pid1].x_loc;
+            p1_y = anchor_p[pid1].y_loc;
+            x_bin1 = floor(anchor_p[pid1].x_loc);
+            y_bin1 = floor(anchor_p[pid1].y_loc);
+            x_margin1 = anchor_p[pid1].x_loc - x_bin1;
+            y_margin1 = anchor_p[pid1].y_loc - y_bin1;
+        }
+        else{
+            int fp1 = find_fixed_pin(p[pid1].pin_number);
+            p1_x = fp[fp1].x_loc;
+            p1_y = fp[fp1].y_loc - 1;
+            x_bin1 = fp[fp1].x_loc;
+            y_bin1 = fp[fp1].y_loc -1 ;
+            x_margin1 = 0;
+            y_margin1 = 0; 
+            }
+            if(!p[pid2].fixed){
+                p2_x = anchor_p[pid2].x_loc;
+                p2_y = anchor_p[pid2].y_loc;
+                x_bin2 = floor(anchor_p[pid2].x_loc);
+                y_bin2 = floor(anchor_p[pid2].y_loc);
+                x_margin2 = anchor_p[pid2].x_loc - x_bin2;
+                y_margin2 = anchor_p[pid2].y_loc - y_bin2;
+            }
+            else{
+                int fp2 = find_fixed_pin(p[pid2].pin_number);
+                p2_x = fp[fp2].x_loc;
+                p2_y = fp[fp2].y_loc - 1;
+                x_bin2 = fp[fp2].x_loc;
+                y_bin2 = fp[fp2].y_loc - 1;
+                x_margin2 = 0;
+                y_margin2 = 0; 
+            }
     }
     //locate their positions
     if(p1_x < p2_x && abs(p1_y - p2_y) > 0.5 * len){ //right
@@ -1094,10 +1167,68 @@ void draw_one_net(){
         }
     }
 }
+
+void spread_draw(){
+    float left_corner_x = 300;
+    float left_corner_y = 2000;
+    float len = 300;
+    //DRAW OTHER ELEMENTS
+    setcolor(BLACK);
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed)
+            continue;    
+        float x_bin = floor(p[i].moved_x_loc);
+        float y_bin = floor(p[i].moved_y_loc);
+        float x_margin = p[i].moved_x_loc - x_bin;
+        float y_margin = p[i].moved_y_loc - y_bin;
+        fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-2-y_bin)*len + y_margin*len ,len/20,0,360);
+        char* s = &(to_string(p[i].pin_number)[0]);
+        drawtext (left_corner_x + x_bin*len + len*x_margin, left_corner_y + (max_y-2-y_bin)*len + y_margin*len + len/12,s, 300);
+    }
+}
+
+void solve_draw(){
+    float left_corner_x = 300;
+    float left_corner_y = 2000;
+    float len = 300;
+    //DRAW OTHER ELEMENTS
+    setcolor(BLACK);
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed)
+            continue;    
+        float x_bin = floor(p[i].x_loc);
+        float y_bin = floor(p[i].y_loc);
+        float x_margin = p[i].x_loc - x_bin;
+        float y_margin = p[i].y_loc - y_bin;
+        fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-2-y_bin)*len + y_margin*len ,len/20,0,360);
+        char* s = &(to_string(p[i].pin_number)[0]);
+        drawtext (left_corner_x + x_bin*len + len*x_margin, left_corner_y + (max_y-2-y_bin)*len + y_margin*len + len/12,s, 300);
+    }
+}
+
+void anchor_draw(){
+    float left_corner_x = 300;
+    float left_corner_y = 2000;
+    float len = 300;
+    //DRAW OTHER ELEMENTS
+    setcolor(BLACK);
+    for(int i = 0; i < num_of_blocks; i++){
+        if(p[i].fixed)
+            continue;    
+        float x_bin = floor(anchor_p[i].x_loc);
+        float y_bin = floor(anchor_p[i].y_loc);
+        float x_margin = anchor_p[i].x_loc - x_bin;
+        float y_margin = anchor_p[i].y_loc - y_bin;
+        fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-2-y_bin)*len + y_margin*len ,len/20,0,360);
+        char* s = &(to_string(anchor_p[i].pin_number)[0]);
+        drawtext (left_corner_x + x_bin*len + len*x_margin, left_corner_y + (max_y-2-y_bin)*len + y_margin*len + len/12,s, 300);
+    }
+}
+
 void drawscreen (void) {
     set_draw_mode (DRAW_NORMAL);
     clearscreen(); 
-    setfontsize (10);
+    setfontsize (2);
     setlinestyle (SOLID);
     setlinewidth (2);
     setcolor (BLACK);
@@ -1119,35 +1250,94 @@ void drawscreen (void) {
         float x_margin = fp[i].x_loc;
         float y_margin = fp[i].y_loc;
         fillarc(left_corner_x + x_margin*len , left_corner_y + (max_y-1-y_margin)*len ,len/15,0,360);
+        char* s = &(to_string(fp[i].pin_number)[0]);
+        drawtext (left_corner_x + x_margin*len, left_corner_y + (max_y-1-y_margin)*len + len/12,s, 300);
     }
-    
-    //DRAW OTHER ELEMENTS
-    setcolor(BLACK);
-    for(int i = 0; i < num_of_blocks; i++){
-        if(p[i].fixed)
-            continue;    
-        float x_bin = floor(p[i].moved_x_loc);
-        float y_bin = floor(p[i].moved_y_loc);
-        float x_margin = p[i].moved_x_loc - x_bin;
-        float y_margin = p[i].moved_y_loc - y_bin;
-        fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-2-y_bin)*len + y_margin*len ,len/20,0,360);
-    }
+
     //DRAW NETS
-    if(nets_clicked % 2 == 1){
+    if(solve_clicked != 0){
+        solve_draw();
+    }
+    if(spread_clicked != 0){
+        spread_draw();
+    }
+    if(anchor_clicked != 0){
+        anchor_draw();
+    }
+    if(nets_clicked % 2 == 1 && (spread_clicked != 0 || solve_clicked!= 0 || anchor_clicked != 0)){
         draw_nets(); 
     }
-    if(one_net_clicked != n_draw_len && one_net_clicked != -1){
+    if(one_net_clicked != n_draw_len && one_net_clicked != -1 && (spread_clicked != 0 || solve_clicked!= 0 || anchor_clicked!= 0)){
         draw_one_net();
     }
 }
-
-
 void act_on_button_press (float x, float y) {
     printf("User clicked a button at coordinates (%f, %f)\n", x, y);
 }
-
+void act_on_spread_button_function (void (*drawscreen_ptr) (void)){
+    if(solve_clicked != 0){
+        solve_clicked = 0;
+        one_net_clicked = -1;
+        drawscreen();
+    }
+    if(anchor_clicked != 0){
+        anchor_clicked = 0;
+        one_net_clicked = -1;
+        drawscreen();
+    }
+    if(spread_clicked == 0){
+        spread_clicked++;
+        spread_draw();
+    }
+    else{
+        spread_clicked = 0;
+        drawscreen();
+    }
+}
+void act_on_anchor_button_function (void (*drawscreen_ptr) (void)){
+    if(spread_clicked != 0){
+        spread_clicked = 0;
+        one_net_clicked = -1;
+        drawscreen();
+    }
+    if(solve_clicked != 0){
+        solve_clicked = 0;
+        one_net_clicked = -1;
+        drawscreen();
+    }
+    if(anchor_clicked == 0){
+        anchor_clicked++;
+        anchor_draw();
+    }
+    else{
+        anchor_clicked = 0;
+        drawscreen();
+    }
+}
+void act_on_solve_button_function (void (*drawscreen_ptr) (void)){
+    if(spread_clicked != 0){
+        spread_clicked = 0;
+        one_net_clicked = -1;
+        drawscreen();
+    }
+    if(anchor_clicked != 0){
+        anchor_clicked = 0;
+        one_net_clicked = -1;
+        drawscreen();
+    }
+    if(solve_clicked == 0){
+        solve_clicked++;
+        solve_draw();
+    }
+    else{
+        solve_clicked = 0;
+        drawscreen();
+    }
+}
 void act_on_net_button_function (void (*drawscreen_ptr) (void)) {
     //DRAW NETS
+    one_net_clicked = -1;
+    drawscreen();
     nets_clicked++;
     if(nets_clicked % 2 == 1){
         draw_nets();
@@ -1157,6 +1347,8 @@ void act_on_net_button_function (void (*drawscreen_ptr) (void)) {
     }
 }
 void act_on_one_net_button_function (void (*drawscreen_ptr) (void)){
+    nets_clicked = 0;
+    drawscreen();
     one_net_clicked++;
     if(one_net_clicked == n_draw_len){
         one_net_clicked = 0;
