@@ -588,6 +588,8 @@ void drawscreen (void) {
         float x_margin = fp[i].x_loc;
         float y_margin = fp[i].y_loc;
         fillarc(left_corner_x + x_margin*len , left_corner_y + (max_y-1-y_margin)*len ,len/15,0,360);
+        char* s = &(to_string(fp[i].pin_number)[0]);
+        drawtext (left_corner_x + x_margin*len, left_corner_y + (max_y-1-y_margin)*len + len/12,s, 300);
     }
     
     //DRAW OTHER ELEMENTS
@@ -600,6 +602,9 @@ void drawscreen (void) {
         float x_margin = p[i].x_loc - x_bin;
         float y_margin = p[i].y_loc - y_bin;
         fillarc(left_corner_x + x_bin*len + len*x_margin , left_corner_y + (max_y-2-y_bin)*len + y_margin*len ,len/20,0,360);
+        char* s = &(to_string(p[i].pin_number)[0]);
+        drawtext (left_corner_x + x_bin*len + len*x_margin, left_corner_y + (max_y-2-y_bin)*len + y_margin*len + len/12,s, 300);
+        
     }
 
     //DRAW NETS
