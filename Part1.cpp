@@ -223,7 +223,7 @@ double* cal_fixed(int dim){//dim 0 : x_vector dim 1: y_vecotr
         }
         index_dim_vec++;
     }
-    
+
     /************************************************************Debug*****************************************************************/
     // for(int i = 0; i < num_of_blocks - num_of_fixed; i++){
     //     cout << " " << dim_vec[i] << " ";

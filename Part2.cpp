@@ -67,7 +67,7 @@ Bin* overfilled_b;
 Pin* anchor_p;
 Net* n_draw;
 bool anchor_applied = false;
-double anchor_weight = 10000;
+double anchor_weight = 100;
 int n_draw_len = 0;
 int num_of_blocks = 0;
 int num_of_fixed = 0;
@@ -824,7 +824,7 @@ double cal_HPWL(){
             int pid_fixed_temp = find_fixed_pin(n[i].connected_block[j]);
             double x_loc = (!p[pid_temp].fixed) ? (p[pid_temp].moved_x_loc) : (fp[pid_fixed_temp].x_loc); 
             double y_loc = (!p[pid_temp].fixed) ? (p[pid_temp].moved_y_loc) : (fp[pid_fixed_temp].y_loc); 
-            if(anchor_applied && p[pid_temp].fixed){
+            if(anchor_applied && !p[pid_temp].fixed){
                 x_loc = anchor_p[pid_temp].x_loc;
                 y_loc = anchor_p[pid_temp].y_loc;
             }
