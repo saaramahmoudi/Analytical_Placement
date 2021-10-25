@@ -66,6 +66,8 @@ Bin* b;
 Bin* overfilled_b;
 Pin* anchor_p;
 Net* n_draw;
+bool anchor_applied = false;
+double anchor_weight = 10000;
 int n_draw_len = 0;
 int num_of_blocks = 0;
 int num_of_fixed = 0;
@@ -247,6 +249,22 @@ double* cal_fixed(int dim){//dim 0 : x_vector dim 1: y_vecotr
             }
         }
         index_dim_vec++;
+    }
+    if(anchor_applied){
+        int index = 0;
+        for(int i = 0; i < num_of_blocks; i++){
+            if(p[i].fixed)
+                continue;
+            else{
+                if(dim < 1){
+                    dim_vec[index] += anchor_weight * p[i].moved_x_loc;
+                }
+                else{
+                    dim_vec[index] += anchor_weight * p[i].moved_y_loc;
+                }
+                index++;
+            }
+        }
     }
     
     /************************************************************Debug*****************************************************************/
@@ -806,9 +824,10 @@ double cal_HPWL(){
             int pid_fixed_temp = find_fixed_pin(n[i].connected_block[j]);
             double x_loc = (!p[pid_temp].fixed) ? (p[pid_temp].moved_x_loc) : (fp[pid_fixed_temp].x_loc); 
             double y_loc = (!p[pid_temp].fixed) ? (p[pid_temp].moved_y_loc) : (fp[pid_fixed_temp].y_loc); 
-            // cout << "net number: " << i << " connected to pin : " << p[pid_temp].pin_number << endl;
-            // cout << "pin loc : " << x_loc << " " << y_loc << endl;
-            // cout << "========================================================" << endl; 
+            if(anchor_applied && p[pid_temp].fixed){
+                x_loc = anchor_p[pid_temp].x_loc;
+                y_loc = anchor_p[pid_temp].y_loc;
+            }
             if(p_x_max < x_loc){
                 p_x_max = x_loc;
             }
@@ -963,10 +982,10 @@ int main(){
     create_bin();
     spread();
     double HPWL_after_spread = cal_HPWL();
-    cout << "HPWL AFTER: " << HPWL_after_spread << endl;
+    cout << "HPWL AFTER SPREAD: " << HPWL_after_spread << endl;
     double displacement_value = cal_displacement();
     cout << "Displacement Value: " << displacement_value << endl; 
-    double anchor_weight = 1;
+    anchor_applied = true;
     double** anchor_weight_mat = add_anchor(weight_mat,anchor_weight);
     double* x_vec1 = solve(0,anchor_weight_mat);
     double* y_vec1 = solve(1,anchor_weight_mat);  
@@ -981,6 +1000,8 @@ int main(){
             cnt++;
         }
     }
+    double HPWL_after_anchor_applied = cal_HPWL();
+    cout << "HPWL After Anchor Applied " << HPWL_after_anchor_applied  << endl;
     delete[] x_vec1;
     delete[] y_vec1;
     create_nets_for_drawing();
