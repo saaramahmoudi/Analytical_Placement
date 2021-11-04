@@ -3,6 +3,9 @@ The source code for solving the placement problem is within Part1.cpp, and the s
 
 # SuiteSparse Package
 SuiteSparse folder is assumed to be in the same directory as the Analytical Placement folder. Makefile uses this setting to access the UMFPACK package. 
+I have sent the SuiteSparse folder in the right place with my source codes. However, for compiling these steps must be taken again.
+
+[UMFPACK Configuration] (https://janders.eecg.utoronto.ca/1387_2021/ECE1387_lin_solver.html)
 
 # Compilation
 You can compile the source code in Part1 simply using this command.
